@@ -144,7 +144,7 @@ setup_conda_env() {
         echo -e "[INFO] Installing dependencies from ${ISAACLAB_PATH}/environment.yml"
 
         # Create environment from YAML file with specified name
-        conda env create -y --file ${ISAACLAB_PATH}/environment.yml -n ${env_name}
+        conda env create --file ${ISAACLAB_PATH}/environment.yml -n ${env_name}
     fi
 
     # cache current paths for later
