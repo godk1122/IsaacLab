@@ -1,0 +1,524 @@
+<sdf version='1.7'>
+  <model name='uav_lidar' canonical_link="base_link">
+    <link name='base_link'>
+      <inertial>
+        <pose>0.0 0 0 0 -0 0</pose>
+        <mass>0.280</mass>
+        <inertia>
+          <ixx>2.6287e-04</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>5.41904e-04</iyy>
+          <iyz>0</iyz>
+          <izz>3.2596e-04</izz>
+        </inertia>
+      </inertial>
+    <collision name='base_link_collision_collision'>
+        <pose>0 0 0.0 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.13338 0.13338 0.074039</size>
+          </box>
+        </geometry>
+       <surface>
+          <contact />
+        </surface>
+      </collision>
+     <!-- <collision name='base_link_collision.000_collision_1'>
+        <pose>0 0 -0.015392 0 -0 0</pose>
+        <geometry>
+          <box>
+            <size>0.079043 0.046428 0.01506</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name='base_link_collision.000.001_collision_2'>
+        <pose>0 0 0.043943 0 -0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.0449982</radius>
+          </sphere>
+        </geometry>
+      </collision> -->
+      <visual name='base_link_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://uav_lidar/meshes/base_link.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint1' type='revolute'>
+      <pose relative_to='base_link'>-0.056569 0.056569 0 0 -0 0</pose>
+      <parent>base_link</parent>
+      <child>link1</child>
+      <axis>
+        <xyz>0 0 -1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <link name='link1'>
+      <pose relative_to='joint1'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0.00011 0.000222 0.018013 0 -0 0</pose>
+        <mass>0.00295012</mass>
+        <inertia>
+          <ixx>6.45848e-07</ixx>
+          <ixy>7.28245e-09</ixy>
+          <ixz>4.1523e-10</ixz>
+          <iyy>6.58481e-07</iyy>
+          <iyz>-8.47977e-10</iyz>
+          <izz>1.29996e-06</izz>
+        </inertia>
+      </inertial>
+        <!-- <collision name='link1_collision_collision'>
+        <pose>0.000129 -0.000456 0.018 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.00365801</length>
+            <radius>0.039783</radius>
+          </cylinder>
+        </geometry>
+      </collision> -->
+      <visual name='link1_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://uav_lidar/meshes/link1.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint2' type='revolute'>
+      <pose relative_to='base_link'>0.056569 -0.056569 0 0 -0 0</pose>
+      <parent>base_link</parent>
+      <child>link2</child>
+      <axis>
+        <xyz>0 0 -1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <link name='link2'>
+      <pose relative_to='joint2'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>3.9e-05 0.000245 0.018013 0 -0 0</pose>
+        <mass>0.00295012</mass>
+        <inertia>
+          <ixx>6.43192e-07</ixx>
+          <ixy>-3.52693e-09</ixy>
+          <ixz>-1.50491e-10</ixz>
+          <iyy>6.61136e-07</iyy>
+          <iyz>-9.32115e-10</iyz>
+          <izz>1.29996e-06</izz>
+        </inertia>
+      </inertial>
+       <!-- <collision name='link2_collision_collision'>
+        <pose>0.000129 -0.000456 0.018 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.00365801</length>
+            <radius>0.039783</radius>
+          </cylinder>
+        </geometry>
+      </collision> -->
+      <visual name='link2_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://uav_lidar/meshes/link2.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint3' type='revolute'>
+      <pose relative_to='base_link'>0.056569 0.056569 0 0 -0 0</pose>
+      <parent>base_link</parent>
+      <child>link3</child>
+      <axis>
+        <xyz>0 0 -1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <link name='link3'>
+      <pose relative_to='joint3'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0.000233 -8.4e-05 0.017987 0 -0 0</pose>
+        <mass>0.00295012</mass>
+        <inertia>
+          <ixx>6.59226e-07</ixx>
+          <ixy>-6.56214e-09</ixy>
+          <ixz>-8.87866e-10</ixz>
+          <iyy>6.45101e-07</iyy>
+          <iyz>-3.21224e-10</iyz>
+          <izz>1.29996e-06</izz>
+        </inertia>
+      </inertial>
+        <!-- <collision name='link3_collision_collision'>
+        <pose>0.000129 -0.000456 0.018 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.00365801</length>
+            <radius>0.039783</radius>
+          </cylinder>
+        </geometry>
+      </collision> -->
+      <visual name='link3_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://uav_lidar/meshes/link3.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint4' type='revolute'>
+      <pose relative_to='base_link'>-0.056569 -0.056569 0 0 -0 0</pose>
+      <parent>base_link</parent>
+      <child>link4</child>
+      <axis>
+        <xyz>0 0 -1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <link name='link4'>
+      <pose relative_to='joint4'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0.000191 -0.000157 0.017987 0 -0 0</pose>
+        <mass>0.00295011</mass>
+        <inertia>
+          <ixx>6.53474e-07</ixx>
+          <ixy>-9.55092e-09</ixy>
+          <ixz>-7.28164e-10</ixz>
+          <iyy>6.50854e-07</iyy>
+          <iyz>-6.01053e-10</iyz>
+          <izz>1.29996e-06</izz>
+        </inertia>
+      </inertial>
+    <!-- <collision name='link4_collision_collision'>
+        <pose>0.000129 -0.000456 0.018 0 -0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.00365801</length>
+            <radius>0.039783</radius>
+          </cylinder>
+        </geometry>
+      </collision> -->
+      <visual name='link4_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://uav_lidar/meshes/link4.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+    <joint name="joint_lidar" type="fixed">
+      <pose relative_to='base_link'>0 0 0.063 0 -0 2.35619449019235</pose> 
+      <parent>base_link</parent>
+      <child>link_lidar</child>
+      <axis>
+        <xyz>0 0 0</xyz>
+      </axis>
+   </joint>
+   <link name="link_lidar">
+      <pose relative_to='joint_lidar'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>3.8230964319319E-07 -6.26231575659442E-06 -0.0249682835917488 0 0 0</pose>
+        <mass>0.220</mass>
+        <inertia>
+          <ixx>1.0428E-04</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>1.0732E-04</iyy>
+          <iyz>0</iyz>
+          <izz>1.0430E-04</izz>
+        </inertia>
+      </inertial>
+      <visual name="link_lidar_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://uav_lidar/meshes/link_lidar.STL</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.698039 0.698039 0.698039 1</ambient>
+        </material>
+      </visual>
+      <collision name="link_lidar_collision">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://uav_lidar/meshes/link_lidar.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+
+    <plugin name='rosbag' filename='libgazebo_multirotor_base_plugin.so'>
+      <robotNamespace/>
+      <linkName>base_link</linkName>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+     <plugin name='front_right_motor_model' filename='libgazebo_motor_model.so'>
+      <robotNamespace/>
+      <jointName>joint2</jointName>
+      <linkName>link2</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>3800</maxRotVelocity>
+      <motorConstant>4.33948e-07</motorConstant>
+      <momentConstant>0.00932</momentConstant>
+      <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
+      <motorNumber>0</motorNumber>
+      <rotorDragCoefficient>0.00000175</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-08</rollingMomentCoefficient>
+      <motorSpeedPubTopic>/motor_speed/0</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <plugin name='back_left_motor_model' filename='libgazebo_motor_model.so'>
+      <robotNamespace/>
+      <jointName>joint1</jointName>
+      <linkName>link1</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>3800</maxRotVelocity>
+      <motorConstant>4.33948e-07</motorConstant>
+      <momentConstant>0.00932</momentConstant>
+      <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
+      <motorNumber>1</motorNumber>
+      <rotorDragCoefficient>0.00000175</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-08</rollingMomentCoefficient>
+      <motorSpeedPubTopic>/motor_speed/1</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <plugin name='front_left_motor_model' filename='libgazebo_motor_model.so'>
+      <robotNamespace/>
+      <jointName>joint3</jointName>
+      <linkName>link3</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>3800</maxRotVelocity>
+      <motorConstant>4.33948e-07</motorConstant>
+      <momentConstant>0.00932</momentConstant>
+      <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
+      <motorNumber>2</motorNumber>
+      <rotorDragCoefficient>0.00000175</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-08</rollingMomentCoefficient>
+      <motorSpeedPubTopic>/motor_speed/2</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <plugin name='back_right_motor_model' filename='libgazebo_motor_model.so'>
+      <robotNamespace/>
+      <jointName>joint4</jointName>
+      <linkName>link4</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>3800</maxRotVelocity>
+      <motorConstant>4.33948e-07</motorConstant>
+      <momentConstant>0.00932</momentConstant>
+      <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
+      <motorNumber>3</motorNumber>
+      <rotorDragCoefficient>0.00000175</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-08</rollingMomentCoefficient>
+      <motorSpeedPubTopic>/motor_speed/3</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <include>
+      <uri>model://gps</uri>
+      <pose>0.00 0 0.04 0 0 0</pose>
+      <name>gps0</name>
+    </include>
+    <joint name='gps0_joint' type='fixed'>
+      <child>gps0::link</child>
+      <parent>base_link</parent>
+    </joint>
+    <plugin name='groundtruth_plugin' filename='libgazebo_groundtruth_plugin.so'>
+      <robotNamespace/>
+    </plugin>
+    <plugin name='magnetometer_plugin' filename='libgazebo_magnetometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>100</pubRate>
+      <noiseDensity>0.0004</noiseDensity>
+      <randomWalk>6.4e-06</randomWalk>
+      <biasCorrelationTime>600</biasCorrelationTime>
+      <magTopic>/mag</magTopic>
+    </plugin>
+    <plugin name='barometer_plugin' filename='libgazebo_barometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>50</pubRate>
+      <baroTopic>/baro</baroTopic>
+      <baroDriftPaPerSec>0</baroDriftPaPerSec>
+    </plugin>
+    <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
+      <robotNamespace/>
+      <imuSubTopic>/imu</imuSubTopic>
+      <magSubTopic>/mag</magSubTopic>
+      <baroSubTopic>/baro</baroSubTopic>
+      <mavlink_addr>INADDR_ANY</mavlink_addr>
+      <mavlink_tcp_port>4560</mavlink_tcp_port>
+      <mavlink_udp_port>14560</mavlink_udp_port>
+      <serialEnabled>0</serialEnabled>
+      <serialDevice>/dev/ttyACM0</serialDevice>
+      <baudRate>921600</baudRate>
+      <qgc_addr>INADDR_ANY</qgc_addr>
+      <qgc_udp_port>14550</qgc_udp_port>
+      <sdk_addr>INADDR_ANY</sdk_addr>
+      <sdk_udp_port>14540</sdk_udp_port>
+      <hil_mode>0</hil_mode>
+      <hil_state_level>0</hil_state_level>
+      <send_vision_estimation>0</send_vision_estimation>
+      <send_odometry>1</send_odometry>
+      <enable_lockstep>1</enable_lockstep>
+      <use_tcp>1</use_tcp>
+      <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
+      <control_channels>
+        <channel name='rotor1'>
+          <input_index>0</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>3800</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>800</zero_position_armed>
+          <joint_control_type>velocity</joint_control_type>
+        </channel>
+        <channel name='rotor2'>
+          <input_index>1</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>3800</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>800</zero_position_armed>
+          <joint_control_type>velocity</joint_control_type>
+        </channel>
+        <channel name='rotor3'>
+          <input_index>2</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>3800</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>800</zero_position_armed>
+          <joint_control_type>velocity</joint_control_type>
+        </channel>
+        <channel name='rotor4'>
+          <input_index>3</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>3800</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>800</zero_position_armed>
+          <joint_control_type>velocity</joint_control_type>
+        </channel>
+        <channel name='rotor5'>
+          <input_index>4</input_index>
+          <input_offset>1</input_offset>
+          <input_scaling>324.6</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>0</zero_position_armed>
+          <joint_control_type>velocity</joint_control_type>
+          <joint_control_pid>
+            <p>0.1</p>
+            <i>0</i>
+            <d>0</d>
+            <iMax>0.0</iMax>
+            <iMin>0.0</iMin>
+            <cmdMax>2</cmdMax>
+            <cmdMin>-2</cmdMin>
+          </joint_control_pid>
+          <joint_name>zephyr_delta_wing::propeller_joint</joint_name>
+        </channel>
+        <channel name='rotor6'>
+          <input_index>5</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>0.524</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>0</zero_position_armed>
+          <joint_control_type>position</joint_control_type>
+          <joint_name>zephyr_delta_wing::flap_left_joint</joint_name>
+          <joint_control_pid>
+            <p>10.0</p>
+            <i>0</i>
+            <d>0</d>
+            <iMax>0</iMax>
+            <iMin>0</iMin>
+            <cmdMax>20</cmdMax>
+            <cmdMin>-20</cmdMin>
+          </joint_control_pid>
+        </channel>
+        <channel name='rotor7'>
+          <input_index>6</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>0.524</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>0</zero_position_armed>
+          <joint_control_type>position</joint_control_type>
+          <joint_name>zephyr_delta_wing::flap_right_joint</joint_name>
+          <joint_control_pid>
+            <p>10.0</p>
+            <i>0</i>
+            <d>0</d>
+            <iMax>0</iMax>
+            <iMin>0</iMin>
+            <cmdMax>20</cmdMax>
+            <cmdMin>-20</cmdMin>
+          </joint_control_pid>
+        </channel>
+        <channel name='rotor8'>
+          <input_index>7</input_index>
+          <input_offset>0</input_offset>
+          <input_scaling>0.524</input_scaling>
+          <zero_position_disarmed>0</zero_position_disarmed>
+          <zero_position_armed>0</zero_position_armed>
+          <joint_control_type>position</joint_control_type>
+        </channel>
+      </control_channels>
+    </plugin>
+    <static>0</static>
+    <plugin name='rotors_gazebo_imu_plugin' filename='libgazebo_imu_plugin.so'>
+      <robotNamespace/>
+      <linkName>base_link</linkName>
+      <imuTopic>/imu</imuTopic>
+      <gyroscopeNoiseDensity>0.00018665</gyroscopeNoiseDensity>
+      <gyroscopeRandomWalk>3.8785e-05</gyroscopeRandomWalk>
+      <gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
+      <gyroscopeTurnOnBiasSigma>0.0087</gyroscopeTurnOnBiasSigma>
+      <accelerometerNoiseDensity>0.00186</accelerometerNoiseDensity>
+      <accelerometerRandomWalk>0.006</accelerometerRandomWalk>
+      <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
+      <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
+    </plugin>
+    <plugin filename="libgazebo_ros_p3d.so" name="quadrotor_groundtruth_sim">
+      <updateRate>100.0</updateRate>
+      <bodyName>uav_lidar::base_link</bodyName>
+      <topicName>ground_truth/state</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+    </plugin>
+
+  </model>
+</sdf>
+
+
+<!-- rate controller -->
+<!--Roll   K 1  D 0.0006  I 0.1   -->
+<!--Pitch  K 1  D 0.0008  I 0.1   -->
+<!--Yaw    K 1  I 0.06   -->

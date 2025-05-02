@@ -16,7 +16,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Isaac-Quadcopter-Direct-v0",
+    id="Hover",
     entry_point=f"{__name__}.quadcopter_env:QuadcopterEnv",
     disable_env_checker=True,
     kwargs={

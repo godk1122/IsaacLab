@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="uav_lidar">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0025461 2.1825E-05 -0.0013634"
+        rpy="0 0 0" />
+      <mass
+        value="0.280" />
+      <inertia
+        ixx="2.6287e-04"
+        ixy="0"
+        ixz="0"
+        iyy="5.41904e-04"
+        iyz="0"
+        izz="3.2596e-04" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link1">
+    <inertial>
+      <origin
+        xyz="-0.000109520787825473 0.000222152709716768 0.0180133986909307"
+        rpy="0 0 0" />
+      <mass
+        value="0.00295011511544517" />
+      <inertia
+        ixx="6.45847616134155E-07"
+        ixy="7.28244795468249E-09"
+        ixz="4.15229930824278E-10"
+        iyy="6.58480649037556E-07"
+        iyz="-8.47976736411843E-10"
+        izz="1.29996134075171E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint1"
+    type="continuous">
+    <origin
+      xyz="-0.0565685424949249 0.0565685424949212 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link1" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="link2">
+    <inertial>
+      <origin
+        xyz="3.88262453765997E-05 0.000244626129644716 0.0180133988631824"
+        rpy="0 0 0" />
+      <mass
+        value="0.00295011570061734" />
+      <inertia
+        ixx="6.43191668196306E-07"
+        ixy="-3.52692710725344E-09"
+        ixz="-1.50490575426909E-10"
+        iyy="6.61136016431894E-07"
+        iyz="-9.32115252460112E-10"
+        izz="1.29996076244585E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint2"
+    type="continuous">
+    <origin
+      xyz="0.0565685424949239 -0.0565685424949243 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link2" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="link3">
+    <inertial>
+      <origin
+        xyz="-0.000233137779298842 -8.36459474903919E-05 0.0179866009042431"
+        rpy="0 0 0" />
+      <mass
+        value="0.0029501151561727" />
+      <inertia
+        ixx="6.59226248627519E-07"
+        ixy="-6.56214012683297E-09"
+        ixz="-8.87866253725555E-10"
+        iyy="6.45101368576168E-07"
+        iyz="-3.21223962585742E-10"
+        izz="1.29996069664668E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint3"
+    type="continuous">
+    <origin
+      xyz="0.0565685424949232 0.0565685424949234 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link3" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="link4">
+    <inertial>
+      <origin
+        xyz="-0.000191437325972238 -0.000157160253741337 0.0179866009342675"
+        rpy="0 0 0" />
+      <mass
+        value="0.00295011452844274" />
+      <inertia
+        ixx="6.53473638250452E-07"
+        ixy="-9.55091516088967E-09"
+        ixz="-7.28164455976834E-10"
+        iyy="6.50854354977349E-07"
+        iyz="-6.01053052831554E-10"
+        izz="1.29996107178079E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint4"
+    type="continuous">
+    <origin
+      xyz="-0.0565685424949237 -0.0565685424949241 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link4" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="link_lidar">
+    <inertial>
+      <origin
+        xyz="3.8230964319319E-07 -6.26231575659442E-06 -0.0249682835917488"
+        rpy="0 0 0" />
+      <mass
+        value="0.220" />
+      <inertia
+        ixx="1.0428E-04"
+        ixy="0"
+        ixz="0"
+        iyy="1.0732E-04"
+        iyz="0"
+        izz="1.0430E-04" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link_lidar.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.698039215686274 0.698039215686274 0.698039215686274 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://uav_lidar/meshes/link_lidar.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_lidar"
+    type="fixed">
+    <origin
+      xyz="0 0 0.063"
+      rpy="0 0 2.35619449019235" />
+    <parent
+      link="base_link" />
+    <child
+      link="link_lidar" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>
