@@ -173,6 +173,9 @@ class TerrainGenerator:
         self.terrain_mesh.apply_transform(transform)
         # -- terrain origins
         self.terrain_origins += transform[:3, -1]
+        
+        # 将所有子地形的原点 z 轴坐标设置为 0
+        self.terrain_origins[:, :, 2] = 0
         # -- valid patches
         terrain_origins_torch = torch.tensor(self.terrain_origins, dtype=torch.float, device=self.device).unsqueeze(2)
         for name, value in self.flat_patches.items():

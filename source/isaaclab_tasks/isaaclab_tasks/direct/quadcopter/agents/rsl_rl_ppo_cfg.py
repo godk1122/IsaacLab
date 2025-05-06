@@ -11,7 +11,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 200000
-    save_interval = 100
+    save_interval = 500
     experiment_name = "quadcopter_rate"
     empirical_normalization = False
     
@@ -19,22 +19,23 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     # load_run = "2024-11-15_08-24-56"
     # load_checkpoint = "model_300"
 
-    # # lidar     
-    # policy = RslRlPpoActorCriticCfg(
-    #     init_noise_std=1.0,
-    #     actor_hidden_dims=[256, 128, 64],
-    #     critic_hidden_dims=[512, 256, 128, 64],
-    #     activation="elu",
-    # )
+    # lidar     
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=1.0,
+        actor_hidden_dims=[256, 128, 64],
+        critic_hidden_dims=[512, 256, 128, 64],
+        activation="elu",
+    )
     
     
     # hover     
-    policy = RslRlPpoActorCriticCfg(
-        init_noise_std=1.0,
-        actor_hidden_dims=[64, 64],
-        critic_hidden_dims=[64, 64],
-        activation="elu",
-    )
+    # policy = RslRlPpoActorCriticCfg(
+    #     init_noise_std=1.0,
+    #     actor_hidden_dims=[64, 64],
+    #     critic_hidden_dims=[64, 64],
+    #     activation="elu",
+    # )
+    
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
