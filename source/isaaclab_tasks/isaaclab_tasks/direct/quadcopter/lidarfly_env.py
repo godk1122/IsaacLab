@@ -313,7 +313,7 @@ class LidarFlyEnv(DirectRLEnv):
         # vel reward
         vel_direction = (self._desired_pos_w - self._robot.data.root_pos_w)
         vel_direction = vel_direction / torch.norm(vel_direction, dim=-1, keepdim=True)
-        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=4.0)
+        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=8.0)
         reward_z = torch.exp(-5 * torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]))
         
         g_proj=self._robot.data.projected_gravity_b
@@ -349,7 +349,7 @@ class LidarFlyEnv(DirectRLEnv):
         velocity_magnitude = torch.linalg.norm(self._robot.data.root_lin_vel_w, dim=1)
         # acc_magnitude = torch.linalg.norm(self._robot.data.body_lin_acc_w, dim=1)
         
-        velocity_died = velocity_magnitude > 4.0
+        velocity_died = velocity_magnitude > 8.0
         
         died = height_died | lidar_died | velocity_died
         # print("current_scan", self.current_scan)

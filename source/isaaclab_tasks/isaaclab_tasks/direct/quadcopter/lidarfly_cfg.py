@@ -96,10 +96,10 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
         terrain_generator=TerrainGeneratorCfg(
             size=(10.0, 10.0),
             border_width=1.0,
-            num_rows=32,
-            num_cols=32,
-            # num_rows=4,
-            # num_cols=4,
+            # num_rows=32,
+            # num_cols=32,
+            num_rows=4,
+            num_cols=4,
             horizontal_scale=0.1,
             vertical_scale=0.005,
             slope_threshold=0.75,
@@ -180,8 +180,8 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     #     debug_vis=False,
     # )
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
-    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=16, env_spacing=2, replicate_physics=True)
+    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=16, env_spacing=2, replicate_physics=True)
     # robot
     robot: ArticulationCfg = UAVLIDAR_CFG.replace(
         prim_path="/World/envs/env_.*/Robot",
@@ -223,7 +223,7 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
         debug_vis=False,
         mesh_prim_paths=["/World/ground"],
     )
-   
+
     thrust_to_weight = 1.9
     moment_scale = 0.01
 
@@ -237,7 +237,7 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     # distance_to_goal_reward_scale = 15.0
     rotor_speed_discount = 50
     live_scale = 1
-    dir_reward_scale = 1.0
+    dir_reward_scale = 5.0
     g_proj_reward_scale = 0.5
     
     class domain_randomization:
