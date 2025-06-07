@@ -237,7 +237,7 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     # distance_to_goal_reward_scale = 15.0
     rotor_speed_discount = 50
     live_scale = 1
-    dir_reward_scale = 5.0
+    dir_reward_scale = 3.0
     g_proj_reward_scale = 0.5
     
     class domain_randomization:

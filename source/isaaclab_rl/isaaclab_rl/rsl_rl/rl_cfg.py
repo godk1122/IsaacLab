@@ -18,6 +18,52 @@ from .symmetry_cfg import RslRlSymmetryCfg
 # Policy configurations #
 #########################
 
+@configclass
+class RslRlPpoActorCriticCascadeCfg:
+    """Configuration for the PPO actor-critic cascade networks."""
+
+    class_name: str = "ActorCriticCascade"
+    """The policy class name. Default is ActorCriticCascade."""
+
+    init_noise_std: float = MISSING
+    """The initial noise standard deviation for the policy."""
+
+    noise_std_type: Literal["scalar", "log"] = "scalar"
+    """The type of noise standard deviation for the policy. Default is scalar."""
+
+    lidar_input_dim: int = MISSING
+    """The input dimension of the lidar sensor."""
+
+    state1_dim: int = MISSING
+    """The dimension of the first state information to be concatenated."""
+
+    state2_dim: int = MISSING
+    """The dimension of the second state information to be concatenated."""
+
+    mlp1_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the first MLP in the cascade."""
+
+    mlp2_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the second MLP in the cascade."""
+
+    mlp3_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the third MLP in the cascade."""
+
+    mlp1_out_dim: int = MISSING
+    """The output dimension of the first MLP in the cascade."""
+
+    mlp2_out_dim: int = MISSING
+    """The output dimension of the second MLP in the cascade."""
+
+    mlp3_out_dim: int = MISSING
+    """The output dimension of the third MLP in the cascade."""
+
+    critic_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the critic network."""
+
+    activation: str = MISSING
+    """The activation function for the actor and critic networks."""
+
 
 @configclass
 class RslRlPpoActorCriticCfg:

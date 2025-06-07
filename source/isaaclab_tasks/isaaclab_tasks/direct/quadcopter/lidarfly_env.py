@@ -313,7 +313,7 @@ class LidarFlyEnv(DirectRLEnv):
         # vel reward
         vel_direction = (self._desired_pos_w - self._robot.data.root_pos_w)
         vel_direction = vel_direction / torch.norm(vel_direction, dim=-1, keepdim=True)
-        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=8.0)
+        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=3.0)
         reward_z = torch.exp(-5 * torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]))
         
         g_proj=self._robot.data.projected_gravity_b
@@ -341,7 +341,7 @@ class LidarFlyEnv(DirectRLEnv):
         for key, value in rewards.items():
             self._episode_sums[key] += value
         return reward
-    def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         # height_died = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.25, self._robot.data.root_pos_w[:, 2] > 3.5)
         height_died = torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]) > 0.5
@@ -349,7 +349,7 @@ class LidarFlyEnv(DirectRLEnv):
         velocity_magnitude = torch.linalg.norm(self._robot.data.root_lin_vel_w, dim=1)
         # acc_magnitude = torch.linalg.norm(self._robot.data.body_lin_acc_w, dim=1)
         
-        velocity_died = velocity_magnitude > 8.0
+        velocity_died = velocity_magnitude > 3.0
         
         died = height_died | lidar_died | velocity_died
         # print("current_scan", self.current_scan)
@@ -361,7 +361,7 @@ class LidarFlyEnv(DirectRLEnv):
         #     print("velocity_died")
         # if time_out.any():
         #     print("time_out")
-        return died, time_out
+        return died, height_died, lidar_died, velocity_died, time_out
 
 
     def _reset_idx(self, env_ids: torch.Tensor | None):
@@ -381,9 +381,9 @@ class LidarFlyEnv(DirectRLEnv):
         self.extras["log"].update(extras)
         extras = dict()
         extras["Episode_Termination/died"] = torch.count_nonzero(self.reset_terminated[env_ids]).item()
-        extras["Episode_Termination/height_died"] = torch.count_nonzero(self._died_height[env_ids]).item()
-        extras["Episode_Termination/velocity_died"] = torch.count_nonzero(self._died_velocity[env_ids]).item()
-        extras["Episode_Termination/lidar_died"] = torch.count_nonzero(self._died_lidar[env_ids]).item()
+        extras["Episode_Termination/height_died"] = torch.count_nonzero(self.reset_height[env_ids]).item()
+        extras["Episode_Termination/velocity_died"] = torch.count_nonzero(self.reset_velocity[env_ids]).item()
+        extras["Episode_Termination/lidar_died"] = torch.count_nonzero(self.reset_lidar[env_ids]).item()
         extras["Episode_Termination/time_out"] = torch.count_nonzero(self.reset_time_outs[env_ids]).item()
         extras["Metrics/final_distance_to_goal"] = final_distance_to_goal.item()
         self.extras["log"].update(extras)

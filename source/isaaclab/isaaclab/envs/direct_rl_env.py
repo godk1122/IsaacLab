@@ -184,6 +184,9 @@ class DirectRLEnv(gym.Env):
         self.episode_length_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.reset_terminated = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
         self.reset_time_outs = torch.zeros_like(self.reset_terminated)
+        self.reset_velocity = torch.zeros(self.num_envs, device=self.device, dtype=torch.float32)
+        self.reset_lidar = torch.zeros(self.num_envs, device=self.device, dtype=torch.float32)
+        self.reset_height = torch.zeros(self.num_envs, device=self.device, dtype=torch.float32)
         self.reset_buf = torch.zeros(self.num_envs, dtype=torch.bool, device=self.sim.device)
 
         # setup the action and observation spaces for Gym
@@ -360,8 +363,12 @@ class DirectRLEnv(gym.Env):
         self.episode_length_buf += 1  # step in current episode (per env)
         self.common_step_counter += 1  # total step (common for all envs)
 
-        self.reset_terminated[:], self.reset_time_outs[:] = self._get_dones()
+        self.reset_terminated[:] = self._get_dones()[0].float()
+        self.reset_time_outs[:] = self._get_dones()[4].float()
         self.reset_buf = self.reset_terminated | self.reset_time_outs
+        self.reset_height[:] = self._get_dones()[1].float()
+        self.reset_lidar[:] = self._get_dones()[2].float()
+        self.reset_velocity[:] = self._get_dones()[3].float()
         self.reward_buf = self._get_rewards()
 
         # -- reset envs that terminated/timed-out and log the episode information
