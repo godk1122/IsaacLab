@@ -434,3 +434,64 @@ def stepping_stones_terrain(difficulty: float, cfg: hf_terrains_cfg.HfSteppingSt
     hf_raw[x1:x2, y1:y2] = 0
     # round off the heights to the nearest vertical step
     return np.rint(hf_raw).astype(np.int16)
+
+
+@height_field_to_mesh
+def wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfWallTerrainCfg) -> np.ndarray:
+    """Generate a terrain with several randomly placed walls.
+
+    The terrain is a flat platform at the center, with several walls (rectangular obstacles) placed randomly.
+    Each wall has a random length, width, and height, and is oriented either along the x or y axis.
+
+    .. image:: ../../_static/terrains/height_field/wall_terrain.jpg
+       :width: 40%
+       :align: center
+
+    Args:
+        difficulty: The difficulty of the terrain. This is a value between 0 and 1.
+        cfg: The configuration for the terrain.
+
+    Returns:
+        The height field of the terrain as a 2D numpy array with discretized heights.
+        The shape of the array is (width, length), where width and length are the number of points
+        along the x and y axis, respectively.
+    """
+    # resolve wall configuration
+    wall_height = cfg.wall_height_range[0] + difficulty * (cfg.wall_height_range[1] - cfg.wall_height_range[0])
+    wall_width_min = int(cfg.wall_width_range[0] / cfg.horizontal_scale)
+    wall_width_max = int(cfg.wall_width_range[1] / cfg.horizontal_scale)
+    wall_length_min = int(cfg.wall_length_range[0] / cfg.horizontal_scale)
+    wall_length_max = int(cfg.wall_length_range[1] / cfg.horizontal_scale)
+    wall_height = int(wall_height / cfg.vertical_scale)
+
+    # switch parameters to discrete units
+    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    platform_width = int(cfg.platform_width / cfg.horizontal_scale)
+
+    # create a terrain with a flat platform at the center
+    hf_raw = np.zeros((width_pixels, length_pixels))
+
+    for _ in range(cfg.num_walls):
+        # Randomly choose orientation: 0 for x-axis, 1 for y-axis
+        orientation = np.random.choice([0, 1])
+        if orientation == 0:
+            wall_width = int(np.random.randint(wall_width_min, wall_width_max + 1))
+            wall_length = int(np.random.randint(wall_length_min, wall_length_max + 1))
+        else:
+            wall_length = int(np.random.randint(wall_width_min, wall_width_max + 1))
+            wall_width = int(np.random.randint(wall_length_min, wall_length_max + 1))
+        # Randomly choose position
+        x_start = np.random.randint(0, width_pixels - wall_width)
+        y_start = np.random.randint(0, length_pixels - wall_length)
+        # Place wall
+        hf_raw[x_start:x_start + wall_width, y_start:y_start + wall_length] = wall_height
+
+    # clip the terrain to the platform
+    x1 = (width_pixels - platform_width) // 2
+    x2 = (width_pixels + platform_width) // 2
+    y1 = (length_pixels - platform_width) // 2
+    y2 = (length_pixels + platform_width) // 2
+    hf_raw[x1:x2, y1:y2] = 0
+    # round off the heights to the nearest vertical step
+    return np.rint(hf_raw).astype(np.int16)

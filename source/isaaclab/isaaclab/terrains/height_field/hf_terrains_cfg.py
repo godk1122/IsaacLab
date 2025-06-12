@@ -10,7 +10,6 @@ from isaaclab.utils import configclass
 from ..terrain_generator_cfg import SubTerrainBaseCfg
 from . import hf_terrains
 
-
 @configclass
 class HfTerrainBaseCfg(SubTerrainBaseCfg):
     """The base configuration for height field terrains."""
@@ -34,6 +33,26 @@ class HfTerrainBaseCfg(SubTerrainBaseCfg):
 Different height field terrain configurations.
 """
 
+@configclass
+class HfWallTerrainCfg(HfTerrainBaseCfg):
+    """Configuration for a wall height field terrain."""
+
+    function = hf_terrains.wall_terrain
+
+    wall_height_range: tuple[float, float] = MISSING
+    """The minimum and maximum height of the walls (in m)."""
+
+    wall_width_range: tuple[float, float] = MISSING
+    """The minimum and maximum width of the walls (in m)."""
+
+    wall_length_range: tuple[float, float] = MISSING
+    """The minimum and maximum length of the walls (in m)."""
+
+    num_walls: int = MISSING
+    """The number of walls to generate."""
+
+    platform_width: float = 1.0
+    """The width of the square platform at the center of the terrain. Defaults to 1.0."""
 
 @configclass
 class HfRandomUniformTerrainCfg(HfTerrainBaseCfg):

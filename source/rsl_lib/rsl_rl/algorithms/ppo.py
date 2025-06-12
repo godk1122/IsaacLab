@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from itertools import chain
 
-from rsl_rl.modules import ActorCritic
+from rsl_rl.modules import ActorCritic,ActorCriticCascade
 from rsl_rl.modules.rnd import RandomNetworkDistillation
 from rsl_rl.storage import RolloutStorage
 from rsl_rl.utils import string_to_callable
@@ -135,16 +135,22 @@ class PPO:
             self.device,
         )
 
-    def act(self, obs, critic_obs):
+    # casacade MLP actor-critic
+    def act(self, lidar_input, mlp1_state_input, mlp2_state_input, critic_obs):
         if self.policy.is_recurrent:
             self.transition.hidden_states = self.policy.get_hidden_states()
         # compute the actions and values
         self.transition.actions = self.policy.act(obs).detach()
+        # self.transition.actions = self.policy.act(lidar_input, mlp1_state_input, mlp2_state_input).detach()
         self.transition.values = self.policy.evaluate(critic_obs).detach()
         self.transition.actions_log_prob = self.policy.get_actions_log_prob(self.transition.actions).detach()
         self.transition.action_mean = self.policy.action_mean.detach()
         self.transition.action_sigma = self.policy.action_std.detach()
         # need to record obs and critic_obs before env.step()
+        # Concatenate all observations into a single tensor and store
+        # self.transition.observations = torch.cat(
+        #     [lidar_input, mlp1_state_input, mlp2_state_input], dim=-1
+        # )
         self.transition.observations = obs
         self.transition.privileged_observations = critic_obs
         return self.transition.actions

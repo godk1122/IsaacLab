@@ -17,7 +17,7 @@ from rsl_rl.env import VecEnv
 from rsl_rl.modules import (
     ActorCritic,
     ActorCriticRecurrent,
-    ActorCriticCascade,
+    # ActorCriticCascade,
     EmpiricalNormalization,
     StudentTeacher,
     StudentTeacherRecurrent,
@@ -202,6 +202,19 @@ class OnPolicyRunner:
             with torch.inference_mode():
                 for _ in range(self.num_steps_per_env):
                     # Sample actions
+                    # 判断是否为级联网络
+                    # if isinstance(self.alg.policy, ActorCriticCascade):
+                    #     lidar_input_dim = self.policy_cfg.get("lidar_input_dim")
+                    #     mlp1_state_dim = self.policy_cfg.get("mlp1_state_dim")
+                    #     mlp2_state_dim = self.policy_cfg.get("mlp2_state_dim")
+                    #     # 假设 obs shape: [num_envs, lidar_dim + state_dim]
+                    #     lidar_input = obs[..., :lidar_input_dim]
+                    #     # mlp1_input = obs[..., :lidar_dim + mlp1_state_dim]
+                    #     mlp1_state_input = obs[..., lidar_input_dim:lidar_input_dim + mlp1_state_dim]
+                    #     mlp2_state_input = obs[..., lidar_input_dim + mlp1_state_dim:]
+                        
+                    #     actions = self.alg.act(lidar_input, mlp1_state_input, mlp2_state_input, privileged_obs)
+                    # else:
                     actions = self.alg.act(obs, privileged_obs)
                     # Step the environment
                     obs, rewards, dones, infos = self.env.step(actions.to(self.env.device))
