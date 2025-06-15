@@ -5,7 +5,8 @@
 
 from isaaclab.utils import configclass
 
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg, RslRlPpoActorCriticCascadeCfg
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg, \
+    RslRlPpoActorCriticCascadeCfg, RslRlPpoCaAlgorithmCfg
 
 @configclass
 class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -51,46 +52,40 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
-# @configclass
-# class QuadcopterPPOCascadeRunnerCfg(RslRlOnPolicyRunnerCfg):
-#     num_steps_per_env = 24
-#     max_iterations = 200000
-#     save_interval = 500
-#     experiment_name = "quadcopter_rate"
-#     empirical_normalization = False
-    
-#     # resume = True
-#     # load_run = "2024-11-15_08-24-56"
-#     # load_checkpoint = "model_300"
+@configclass
+class QuadcopterPPOCascadeRunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 24
+    max_iterations = 200000
+    save_interval = 500
+    experiment_name = "quadcopter_rate"
+    empirical_normalization = False
 
-#     # lidar     
-#     policy = RslRlPpoActorCriticCascadeCfg(
-#         init_noise_std=1.0,
-#         actor_hidden_dims=[256, 128, 64],
-#         critic_hidden_dims=[512, 256, 128, 64],
-#         activation="elu",
-#     )
-    
-    
-#     # hover     
-#     # policy = RslRlPpoActorCriticCfg(
-#     #     init_noise_std=1.0,
-#     #     actor_hidden_dims=[64, 64],
-#     #     critic_hidden_dims=[64, 64],
-#     #     activation="elu",
-#     # )
-    
-#     algorithm = RslRlPpoAlgorithmCfg(
-#         value_loss_coef=1.0,
-#         use_clipped_value_loss=True,
-#         clip_param=0.15,
-#         entropy_coef=0.005,
-#         num_learning_epochs=5,
-#         num_mini_batches=4,
-#         learning_rate=1.0e-5,
-#         schedule="adaptive",
-#         gamma=0.99,
-#         lam=0.95,
-#         desired_kl=0.01,
-#         max_grad_norm=1.0,
-#     )
+    # lidar cascade policy
+    policy = RslRlPpoActorCriticCascadeCfg(
+        init_noise_std=1.0,
+        noise_std_type="scalar",
+        lidar_input_dim=72*5,         # 请根据实际输入修改
+        mlp1_state_dim=18,               # 对应 mlp1_state_dim
+        mlp2_state_dim=51,               # 对应 mlp2_state_dim
+        mlp1_hidden_dims=[128, 64],
+        mlp2_hidden_dims=[256, 128, 64],
+        mlp1_out_dim=3,
+        mlp2_out_dim=64,
+        critic_hidden_dims=[512, 256, 128, 64],
+        activation="elu",
+    )
+
+    algorithm = RslRlPpoCaAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.15,
+        entropy_coef=0.005,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-5,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )

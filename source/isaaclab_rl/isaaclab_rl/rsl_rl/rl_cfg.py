@@ -34,10 +34,10 @@ class RslRlPpoActorCriticCascadeCfg:
     lidar_input_dim: int = MISSING
     """The input dimension of the lidar sensor."""
 
-    state1_dim: int = MISSING
+    mlp1_state_dim: int = MISSING
     """The dimension of the first state information to be concatenated."""
 
-    state2_dim: int = MISSING
+    mlp2_state_dim: int = MISSING
     """The dimension of the second state information to be concatenated."""
 
     mlp1_hidden_dims: list[int] = MISSING
@@ -46,17 +46,11 @@ class RslRlPpoActorCriticCascadeCfg:
     mlp2_hidden_dims: list[int] = MISSING
     """The hidden dimensions of the second MLP in the cascade."""
 
-    mlp3_hidden_dims: list[int] = MISSING
-    """The hidden dimensions of the third MLP in the cascade."""
-
     mlp1_out_dim: int = MISSING
     """The output dimension of the first MLP in the cascade."""
 
     mlp2_out_dim: int = MISSING
     """The output dimension of the second MLP in the cascade."""
-
-    mlp3_out_dim: int = MISSING
-    """The output dimension of the third MLP in the cascade."""
 
     critic_hidden_dims: list[int] = MISSING
     """The hidden dimensions of the critic network."""
@@ -168,7 +162,14 @@ class RslRlPpoAlgorithmCfg:
     in which case RND is not used.
     """
 
+@configclass
+class RslRlPpoCaAlgorithmCfg(RslRlPpoAlgorithmCfg):
+    """Configuration for the PPO algorithm with Cascade Actor-Critic."""
 
+    class_name: str = "PPOCA"
+    """The algorithm class name. Default is PPOCA."""
+
+    # Inherits all other parameters from RslRlPpoAlgorithmCfg
 #########################
 # Runner configurations #
 #########################
@@ -193,10 +194,10 @@ class RslRlOnPolicyRunnerCfg:
     empirical_normalization: bool = MISSING
     """Whether to use empirical normalization."""
 
-    policy: RslRlPpoActorCriticCfg | RslRlDistillationStudentTeacherCfg = MISSING
+    policy: RslRlPpoActorCriticCfg | RslRlDistillationStudentTeacherCfg | RslRlPpoActorCriticCascadeCfg= MISSING
     """The policy configuration."""
 
-    algorithm: RslRlPpoAlgorithmCfg | RslRlDistillationAlgorithmCfg = MISSING
+    algorithm: RslRlPpoAlgorithmCfg | RslRlDistillationAlgorithmCfg | RslRlPpoCaAlgorithmCfg = MISSING
     """The algorithm configuration."""
 
     clip_actions: float | None = None
