@@ -441,11 +441,11 @@ def wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfWallTerrainCfg) -> np
     """Generate a terrain with several randomly placed walls.
 
     The terrain is a flat platform at the center, with several walls (rectangular obstacles) placed randomly.
-    Each wall has a random length, width, and height, and is oriented either along the x or y axis.
+    Each wall has a random length, width, and height, and its long edge is always perpendicular to the x-axis (i.e., walls are aligned along the y-axis).
 
     .. image:: ../../_static/terrains/height_field/wall_terrain.jpg
-       :width: 40%
-       :align: center
+        :width: 40%
+        :align: center
 
     Args:
         difficulty: The difficulty of the terrain. This is a value between 0 and 1.
@@ -473,14 +473,12 @@ def wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfWallTerrainCfg) -> np
     hf_raw = np.zeros((width_pixels, length_pixels))
 
     for _ in range(cfg.num_walls):
-        # Randomly choose orientation: 0 for x-axis, 1 for y-axis
-        orientation = np.random.choice([0, 1])
-        if orientation == 0:
-            wall_width = int(np.random.randint(wall_width_min, wall_width_max + 1))
-            wall_length = int(np.random.randint(wall_length_min, wall_length_max + 1))
-        else:
-            wall_length = int(np.random.randint(wall_width_min, wall_width_max + 1))
-            wall_width = int(np.random.randint(wall_length_min, wall_length_max + 1))
+        # Always make the long edge perpendicular to x-axis (i.e., along y-axis)
+        wall_width = int(np.random.randint(wall_width_min, wall_width_max + 1))
+        wall_length = int(np.random.randint(wall_length_min, wall_length_max + 1))
+        # Ensure wall_length >= wall_width
+        if wall_length < wall_width:
+            wall_length, wall_width = wall_width, wall_length
         # Randomly choose position
         x_start = np.random.randint(0, width_pixels - wall_width)
         y_start = np.random.randint(0, length_pixels - wall_length)

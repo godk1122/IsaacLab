@@ -34,7 +34,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG  # isort: skip
 from .lidarguide_cfg import LidarGuideEnvCfg
 from collections import deque
 
-class LidarGuideEnv(DirectRLEnv):
+class LidarGuideRnnEnv(DirectRLEnv):
     cfg: LidarGuideEnvCfg
 
     def __init__(self, cfg: LidarGuideEnvCfg, render_mode: str | None = None, **kwargs):
@@ -308,16 +308,17 @@ class LidarGuideEnv(DirectRLEnv):
         )
         
         # 更新队列
-        self.obs_queue.append(current_non_lidar_obs)
+        # self.obs_queue.append(current_non_lidar_obs)
         
         # 累积最近3帧的非激光雷达部分观测数据
-        accumulated_non_lidar_obs = torch.cat(list(self.obs_queue), dim=-1)
+        # accumulated_non_lidar_obs = torch.cat(list(self.obs_queue), dim=-1)
         
         # 将激光雷达部分与累积的非激光雷达部分观测数据拼接
         obs = torch.cat(
             [
                 self.current_scan_noise,
-                accumulated_non_lidar_obs,
+                # accumulated_non_lidar_obs,
+                current_non_lidar_obs,
             ],
             dim=-1,
         )

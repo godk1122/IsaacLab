@@ -181,7 +181,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     num_walls=1,
                     wall_height_range=(4.0, 5.0),
                     wall_width_range=(0.4, 0.8),
-                    wall_length_range=(2.0, 4.0),
+                    wall_length_range=(3.0, 5.0),
                     platform_width=0.0,
                     proportion=1.0,
                 ),

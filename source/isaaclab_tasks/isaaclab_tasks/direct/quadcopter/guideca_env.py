@@ -320,6 +320,7 @@ class GuideCaEnv(DirectRLEnv):
         distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 5)
         action_diff = torch.sum(torch.square(self.last_action - self._previous_actions), dim=1)
+        
         # vel reward
         vel_direction = (self._desired_pos_w - self._robot.data.root_pos_w)
         vel_direction = vel_direction / torch.norm(vel_direction, dim=-1, keepdim=True)
