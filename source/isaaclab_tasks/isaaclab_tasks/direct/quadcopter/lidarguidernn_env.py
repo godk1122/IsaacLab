@@ -69,6 +69,7 @@ class LidarGuideRnnEnv(DirectRLEnv):
                 "live",
                 "reward_dir",
                 "reward_g_proj",
+                "reward_yaw",
             ]
         }
         # Get specific body indices
@@ -85,11 +86,15 @@ class LidarGuideRnnEnv(DirectRLEnv):
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
         
         self.current_scan = torch.zeros(self.num_envs, self.cfg.lidar_resolution[0]*self.cfg.lidar_resolution[1], device=self.device).reshape(self.num_envs, -1)
+        self.episode_count = 0
+        self.success_count = 0
+        self.success_window = deque(maxlen=100)  # 统计最近100个episode的成功情况
         # obs 3 -
         # 初始化队列来存储最近的3帧观测数据
         self.obs_queue = deque(maxlen=3)
-        initial_obs_shape = (self.num_envs, self._robot.data.root_lin_vel_b.shape[-1] + 
-                             self._robot.data.root_ang_vel_b.shape[-1] + 1 +
+        initial_obs_shape = (self.num_envs, 
+                             self._robot.data.root_lin_vel_b.shape[-1] 
+                             + self._robot.data.root_ang_vel_b.shape[-1] + 1 +
                              3 + 3 + self.last_action.shape[-1])
         initial_obs = torch.zeros(initial_obs_shape, device=self.device)
         for _ in range(3):
@@ -140,12 +145,43 @@ class LidarGuideRnnEnv(DirectRLEnv):
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
+        
+        # self.dynamic_obstacle_cfg = RigidObjectCfg(
+        #     prim_path="/World/envs/env_.*/dynamic_obstacle",
+        #     spawn=sim_utils.CuboidCfg(
+        #         size=(0.4, 0.8, 4),
+        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(max_depenetration_velocity=1.0, disable_gravity=True),
+        #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1, 1.0, 1.0)),
+        #         collision_props=sim_utils.CollisionPropertiesCfg(),  # <--- 添加这一行
+        #     ),
+        #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 2)),
+        # )
+        # self.dynamic_obstacle = RigidObject(self.dynamic_obstacle_cfg)
+        # self.scene.rigid_objects["dynamic_obstacle"] = self.dynamic_obstacle
+        # ...已有代码...
+        
 
     def _pre_physics_step(self, actions: torch.Tensor):     
         # vel =self._robot.data.root_lin_vel_w
         # pos =self._robot.data.root_pos_w
-        
-        # height = pos[..., 2]
+        # 让 dynamic_obstacle 在 x 轴做周期运动
+        # t = self.episode_length_buf.float() * self.dt  # [num_envs]
+        # new_pos = torch.zeros(self.num_envs, 3, device=self.device)
+        # new_pos[:, 0] = 0.0 
+        # new_pos[:, 1] = 2.0 * torch.sin(t)
+        # new_pos[:, 2] = 2.0
+
+        # new_rot = torch.zeros(self.num_envs, 4, device=self.device)
+        # new_rot[:, 0] = 1.0
+
+        # env_origins = self._terrain.terrain_origins.view(-1, 3).to(self.device)  # [num_envs, 3]
+        # new_pos[:, :2] += env_origins[:, :2]  # 直接加，不用 env_ids
+
+        # new_pose = torch.cat([new_pos, new_rot], dim=1)
+        # self.dynamic_obstacle.write_root_pose_to_sim(new_pose)
+        # # height = pos[..., 2]
         # velocity_z = vel[..., 2]
         # pos_error = 2 - height
         # target_acc = (
@@ -166,7 +202,7 @@ class LidarGuideRnnEnv(DirectRLEnv):
         
         # self.target_rate = torch.zeros_like(actions[:, 0:3])
         # self.target_thrust =torch.ones_like(actions[:, 3]).unsqueeze(1)
-        
+
         # return
         #  set controller target here
         self.target_rate = actions[:, 0:3].clip(-1,1) * torch.pi
@@ -200,7 +236,6 @@ class LidarGuideRnnEnv(DirectRLEnv):
         noise = torch.randn_like(value, device=self.device).clip(-0.5, 0.5) * dynamic_scale
         return value + noise
     
-     # -- 计算无碰撞下的最优前进方向 --
     def get_optimal_direction(self, desired_p_b):
         # 获取当前帧的激光雷达数据
         current_lidar_hits = self.scene["ray_scanner"].data.ray_hits_w
@@ -216,34 +251,46 @@ class LidarGuideRnnEnv(DirectRLEnv):
         # 只取后4个竖直分辨率
         current_scan = current_scan[..., 1:3]  # [num_envs, 72, 4]
         N = current_scan.shape[1]  # 72
-        
+
         # 计算 desired_p_b 对应的角度
         desired_angle = torch.atan2(desired_p_b[:, 1], desired_p_b[:, 0])
         desired_angle = torch.where(desired_angle < 0, desired_angle + 2 * torch.pi, desired_angle)
-        desired_index = (desired_angle / (2 * torch.pi) * N).long() % N  # [num_envs]
-
-        # 有效mask: 某个方向的4个高度都无碰撞才算有效
-        valid_mask = (current_scan < 0.5).all(dim=-1)  # [num_envs, 72]
-        angles = torch.linspace(0, 2 * torch.pi, N, device=self.device)   # [72]
-        angles = angles.unsqueeze(0).expand(desired_p_b.shape[0], N)  # [num_envs, 72]
+        
+        # 有效mask: 只用后三个高度层判断无遮挡
+        valid_mask = (current_scan[..., 1:] < 0.2).all(dim=-1)  # [num_envs, N]
+        angles = torch.linspace(0, 2 * torch.pi, N, device=self.device, dtype=desired_p_b.dtype)
+        angles = angles.unsqueeze(0).expand(desired_p_b.shape[0], N)  # [num_envs, N]
 
         # 计算每个方向与目标方向的夹角差
-        desired_angle = torch.atan2(desired_p_b[:, 1], desired_p_b[:, 0])
         angle_diff = torch.remainder(angles - desired_angle.unsqueeze(1) + torch.pi, 2 * torch.pi) - torch.pi  # [-pi, pi]
 
-        # 只对无遮挡方向加权
-        weights = torch.exp(-0.5 * (angle_diff / 0.5) ** 2)  # 0.5弧度为权重带宽，可调
+        # 权重带宽调大，平滑
+        weights = torch.exp(-0.5 * (angle_diff / 1.2) ** 2)
         weights = weights * valid_mask.float()
-        weights_sum = weights.sum(dim=1, keepdim=True) + 1e-6
+        weights_sum = weights.sum(dim=1, keepdim=True) + 1e-4
         weights = weights / weights_sum
 
-        # 方向向量加权平均
         dir_x = torch.cos(angles)
         dir_y = torch.sin(angles)
         avg_dir = torch.stack([
             (dir_x * weights).sum(dim=1),
             (dir_y * weights).sum(dim=1)
         ], dim=-1)  # [num_envs, 2]
+
+        # --- 关键优化：无遮挡方向极少时，直接选最近无遮挡方向 ---
+        valid_counts = valid_mask.sum(dim=1)
+        min_valid = 3  # 少于2个无遮挡方向时直接选最近无遮挡方向
+        fallback_dir = torch.stack([dir_x, dir_y], dim=-1)
+        # 对每个环境，找到最近的无遮挡方向
+        masked_angle_diff = torch.abs(angle_diff) + (~valid_mask) * 1e6
+        nearest_idx = masked_angle_diff.argmin(dim=1)
+        nearest_dir = fallback_dir[torch.arange(desired_p_b.shape[0]), nearest_idx]
+        # 平滑选择
+        avg_dir = torch.where(
+            (valid_counts > min_valid).unsqueeze(-1),
+            avg_dir,
+            nearest_dir
+        )
 
         # 保持z方向
         optimal_direction = desired_p_b.clone()
@@ -385,8 +432,8 @@ class LidarGuideRnnEnv(DirectRLEnv):
         # vel reward
         vel_direction = (self._desired_pos_w - self._robot.data.root_pos_w)
         vel_direction = vel_direction / torch.norm(vel_direction, dim=-1, keepdim=True)
-        # reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=3.0)
-        reward_dir = (self._robot.data.root_lin_vel_b * self.optimal_direction).sum(-1).clip(max=3.0)
+        # reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=8.0)
+        reward_dir = (self._robot.data.root_lin_vel_b * self.optimal_direction).sum(-1).clip(max=8.0)
         reward_z = torch.exp(-5 * torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]))
         
         g_proj=self._robot.data.projected_gravity_b
@@ -395,7 +442,22 @@ class LidarGuideRnnEnv(DirectRLEnv):
         g_proj_reward = torch.exp(-5 * torch.abs(-1 - g_proj[:, 2]))
         
         # reward_esdf = torch.exp(-5 * self.current_scan.max(dim=1).values)
-        
+        # 新增：偏航角奖励
+        # 计算无人机当前yaw（世界坐标系下）
+        quat_w = self._robot.data.root_quat_w
+        # 提取yaw分量
+        yaw = torch.atan2(
+            2.0 * (quat_w[:, 0] * quat_w[:, 3] + quat_w[:, 1] * quat_w[:, 2]),
+            1.0 - 2.0 * (quat_w[:, 2] ** 2 + quat_w[:, 3] ** 2)
+        )
+        # 目标方向在世界坐标系下的yaw
+        target_vec = self._desired_pos_w - self._robot.data.root_pos_w
+        target_yaw = torch.atan2(target_vec[:, 1], target_vec[:, 0])
+        # 偏航角差 [-pi, pi]
+        yaw_diff = torch.remainder(yaw - target_yaw + torch.pi, 2 * torch.pi) - torch.pi
+        # 奖励偏航角对齐（高斯型或负绝对值）
+        reward_yaw = torch.exp(-2 * torch.abs(yaw_diff))  # 你也可以用 -torch.abs(yaw_diff)
+   
         # lidar 
         live = torch.ones_like(lin_vel)
         rewards = {
@@ -408,6 +470,7 @@ class LidarGuideRnnEnv(DirectRLEnv):
             "live" : self.cfg.live_scale * live * self.step_dt,
             "reward_dir": reward_dir * self.cfg.dir_reward_scale * self.step_dt,
             "reward_g_proj": g_proj_reward * self.cfg.g_proj_reward_scale * self.step_dt,
+            "reward_yaw": reward_yaw * self.cfg.yaw_reward_scale * self.step_dt,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         # Logging
@@ -423,7 +486,7 @@ class LidarGuideRnnEnv(DirectRLEnv):
         velocity_magnitude = torch.linalg.norm(self._robot.data.root_lin_vel_w, dim=1)
         # acc_magnitude = torch.linalg.norm(self._robot.data.body_lin_acc_w, dim=1)
         
-        velocity_died = velocity_magnitude > 3.0
+        velocity_died = velocity_magnitude > 8.0
         
         died = height_died | lidar_died | velocity_died
         # print("current_scan", self.current_scan)
@@ -441,8 +504,37 @@ class LidarGuideRnnEnv(DirectRLEnv):
     def _reset_idx(self, env_ids: torch.Tensor | None):
         if env_ids is None or len(env_ids) == self.num_envs:
             env_ids = self._robot._ALL_INDICES
+        # 重置障碍物到各自环境原点上方2米
+        # ----------- 这里批量设置每个环境的障碍物初始位置 -----------
+        # env_ids 是你要 reset 的环境索引
+        # env_origins = self._terrain.terrain_origins.view(-1, 3).to(self.device)  # [num_envs, 3]
 
+        # # 只对需要 reset 的 env_ids 进行操作
+        # obstacle_pos = torch.zeros(len(env_ids), 3, device=self.device)
+        # obstacle_pos[:, :2] += env_origins[env_ids, :2]  # 加上每个环境的原点xy
+        # obstacle_pos[:, 2] = env_origins[env_ids, 2] + 2.0  # z轴加2米
+
+        # obstacle_rot = torch.zeros(len(env_ids), 4, device=self.device)
+        # obstacle_rot[:, 0] = 1.0
+
+        # obstacle_pose = torch.cat([obstacle_pos, obstacle_rot], dim=1)  # [len(env_ids), 7]
+        # self.dynamic_obstacle.write_root_pose_to_sim(obstacle_pose, env_ids=env_ids)
+            
         # Logging
+        # 计算每个环境的距离
+        final_distance = torch.linalg.norm(
+            self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
+        )
+
+        # 判断哪些是成功（未died且未timeout，且距离目标小于阈值）
+        # 只统计本次真正终止的环境
+        # 只统计本次reset的环境中，未died、未timeout且到达目标的为成功
+        # success_mask = (~self.reset_terminated[env_ids]) & (~self.reset_time_outs[env_ids]) & (final_distance < 1.2)
+        success_mask = (final_distance < 2)
+        self.success_window.extend(success_mask.cpu().numpy().tolist())
+        success_rate = sum(self.success_window) / max(1, len(self.success_window))
+        
+        # ...原有日志统计...
         final_distance_to_goal = torch.linalg.norm(
             self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
         ).mean()
@@ -462,6 +554,9 @@ class LidarGuideRnnEnv(DirectRLEnv):
         extras["Metrics/final_distance_to_goal"] = final_distance_to_goal.item()
         self.extras["log"].update(extras)
 
+        # 写入滑动窗口成功率
+        self.extras["log"]["Episode_Success/success_rate"] = success_rate
+            
         self._robot.reset(env_ids)
         self.motor_model.reset(env_ids)
         self.rate_controller.reset(env_ids)
@@ -474,7 +569,7 @@ class LidarGuideRnnEnv(DirectRLEnv):
 
         self._actions[env_ids] = 0.0
         # Sample new commands
-        self._desired_pos_w[env_ids, 0] = torch.zeros_like(self._desired_pos_w[env_ids, 0]).uniform_(4, 5.5)
+        self._desired_pos_w[env_ids, 0] = torch.zeros_like(self._desired_pos_w[env_ids, 0]).uniform_(7, 8.5)
         self._desired_pos_w[env_ids, 1] = torch.zeros_like(self._desired_pos_w[env_ids, 1]).uniform_(-3, 3)
         self._desired_pos_w[env_ids, :2] += self._terrain.terrain_origins.view(-1,3)[env_ids, :2]
         # print("terrain origins", self._terrain.terrain_origins)

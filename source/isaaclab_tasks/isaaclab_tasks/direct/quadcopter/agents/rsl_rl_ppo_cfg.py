@@ -11,7 +11,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 200000
+    max_iterations = 10000
     save_interval = 500
     experiment_name = "quadcopter_rate"
     empirical_normalization = False
@@ -55,7 +55,7 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 @configclass
 class QuadcopterPPORNNRunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 200000
+    max_iterations = 10000
     save_interval = 500
     experiment_name = "quadcopter_rate"
     empirical_normalization = False

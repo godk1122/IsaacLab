@@ -83,6 +83,9 @@ class LidarFlyEnv(DirectRLEnv):
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
         
         self.current_scan = torch.zeros(self.num_envs, self.cfg.lidar_resolution[0]*self.cfg.lidar_resolution[1], device=self.device).reshape(self.num_envs, -1)
+        self.episode_count = 0
+        self.success_count = 0
+        self.success_window = deque(maxlen=100)  # 统计最近100个episode的成功情况
         # obs 3 -
         # 初始化队列来存储最近的3帧观测数据
         self.obs_queue = deque(maxlen=3)
@@ -313,7 +316,7 @@ class LidarFlyEnv(DirectRLEnv):
         # vel reward
         vel_direction = (self._desired_pos_w - self._robot.data.root_pos_w)
         vel_direction = vel_direction / torch.norm(vel_direction, dim=-1, keepdim=True)
-        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=3.0)
+        reward_dir = (self._robot.data.root_lin_vel_w * vel_direction).sum(-1).clip(max=8.0)
         reward_z = torch.exp(-5 * torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]))
         
         g_proj=self._robot.data.projected_gravity_b
@@ -341,6 +344,7 @@ class LidarFlyEnv(DirectRLEnv):
         for key, value in rewards.items():
             self._episode_sums[key] += value
         return reward
+    
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         # height_died = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.25, self._robot.data.root_pos_w[:, 2] > 3.5)
@@ -349,7 +353,7 @@ class LidarFlyEnv(DirectRLEnv):
         velocity_magnitude = torch.linalg.norm(self._robot.data.root_lin_vel_w, dim=1)
         # acc_magnitude = torch.linalg.norm(self._robot.data.body_lin_acc_w, dim=1)
         
-        velocity_died = velocity_magnitude > 3.0
+        velocity_died = velocity_magnitude > 8.0
         
         died = height_died | lidar_died | velocity_died
         # print("current_scan", self.current_scan)
@@ -369,6 +373,21 @@ class LidarFlyEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES
 
         # Logging
+            
+        # 计算每个环境的距离
+        final_distance = torch.linalg.norm(
+            self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
+        )
+
+        # 判断哪些是成功（未died且未timeout，且距离目标小于阈值）
+        # 只统计本次真正终止的环境
+        # 只统计本次reset的环境中，未died、未timeout且到达目标的为成功
+        # success_mask = (~self.reset_terminated[env_ids]) & (~self.reset_time_outs[env_ids]) & (final_distance < 1.2)
+        success_mask = (final_distance < 2)
+        self.success_window.extend(success_mask.cpu().numpy().tolist())
+        success_rate = sum(self.success_window) / max(1, len(self.success_window))
+        
+        # ...原有日志统计...
         final_distance_to_goal = torch.linalg.norm(
             self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
         ).mean()
@@ -388,6 +407,9 @@ class LidarFlyEnv(DirectRLEnv):
         extras["Metrics/final_distance_to_goal"] = final_distance_to_goal.item()
         self.extras["log"].update(extras)
 
+        # 写入滑动窗口成功率
+        self.extras["log"]["Episode_Success/success_rate"] = success_rate
+            
         self._robot.reset(env_ids)
         self.motor_model.reset(env_ids)
         self.rate_controller.reset(env_ids)
@@ -400,7 +422,7 @@ class LidarFlyEnv(DirectRLEnv):
 
         self._actions[env_ids] = 0.0
         # Sample new commands
-        self._desired_pos_w[env_ids, 0] = torch.zeros_like(self._desired_pos_w[env_ids, 0]).uniform_(4, 5.5)
+        self._desired_pos_w[env_ids, 0] = torch.zeros_like(self._desired_pos_w[env_ids, 0]).uniform_(7, 8.5)
         self._desired_pos_w[env_ids, 1] = torch.zeros_like(self._desired_pos_w[env_ids, 1]).uniform_(-3, 3)
         self._desired_pos_w[env_ids, :2] += self._terrain.terrain_origins.view(-1,3)[env_ids, :2]
         # print("terrain origins", self._terrain.terrain_origins)

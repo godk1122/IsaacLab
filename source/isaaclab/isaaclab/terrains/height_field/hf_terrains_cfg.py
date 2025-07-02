@@ -155,7 +155,27 @@ class HfDiscreteObstaclesTerrainCfg(HfTerrainBaseCfg):
     platform_width: float = 1.0
     """The width of the square platform at the center of the terrain. Defaults to 1.0."""
 
+@configclass
+class HfDiscreteObstaclesWallTerrainCfg(HfTerrainBaseCfg):
+    """Configuration for a discrete obstacles height field terrain."""
 
+    function = hf_terrains.discrete_obstacles_wall_terrain
+
+    obstacle_height_mode: str = "choice"
+    """The mode to use for the obstacle height. Defaults to "choice".
+
+    The following modes are supported: "choice", "fixed".
+    """
+    obstacle_width_range: tuple[float, float] = MISSING
+    """The minimum and maximum width of the obstacles (in m)."""
+    obstacle_height_range: tuple[float, float] = MISSING
+    """The minimum and maximum height of the obstacles (in m)."""
+    num_obstacles: int = MISSING
+    """The number of obstacles to generate."""
+    platform_width: float = 1.0
+    """The width of the square platform at the center of the terrain. Defaults to 1.0."""
+    walls: list[dict] = None
+    
 @configclass
 class HfWaveTerrainCfg(HfTerrainBaseCfg):
     """Configuration for a wave height field terrain."""

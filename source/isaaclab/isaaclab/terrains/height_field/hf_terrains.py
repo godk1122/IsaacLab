@@ -236,6 +236,89 @@ def discrete_obstacles_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscret
         cfg.obstacle_height_range[1] - cfg.obstacle_height_range[0]
     )
 
+   # switch parameters to discrete units
+    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    obs_height = int(obs_height / cfg.vertical_scale)
+    obs_width_min = int(cfg.obstacle_width_range[0] / cfg.horizontal_scale)
+    obs_width_max = int(cfg.obstacle_width_range[1] / cfg.horizontal_scale)
+    obs_width_range = np.arange(obs_width_min, obs_width_max, 4)
+    obs_length_range = np.arange(obs_width_min, obs_width_max, 4)
+
+    # 计算x/y方向的像素范围（正方形区域，中心对齐）
+    x_center = width_pixels // 2
+    y_center = length_pixels // 2
+    half_box = int(6 / cfg.horizontal_scale)
+    x_min = max(0, x_center - half_box)
+    x_max = min(width_pixels, x_center + half_box)
+    y_min = max(0, y_center - half_box)
+    y_max = min(length_pixels, y_center + half_box)
+
+    min_dist = int(1.5 / cfg.horizontal_scale)  # 设定障碍物中心最小间距（如2米，可调整）
+
+    hf_raw = np.zeros((width_pixels, length_pixels))
+    num_obstacles = cfg.num_obstacles
+    placed = 0
+    centers = []
+
+    while placed < num_obstacles:
+        # sample size
+        if cfg.obstacle_height_mode == "choice":
+            height = np.random.choice([-obs_height, -obs_height // 2, obs_height // 2, obs_height])
+        elif cfg.obstacle_height_mode == "fixed":
+            height = obs_height
+        else:
+            raise ValueError(f"Unknown obstacle height mode '{cfg.obstacle_height_mode}'. Must be 'choice' or 'fixed'.")
+        width = int(np.random.choice(obs_width_range))
+        length = int(np.random.choice(obs_length_range))
+        if (x_max - x_min - width) <= 0 or (y_max - y_min - length) <= 0:
+            continue  # 尺寸太大，跳过
+        x_start = np.random.randint(x_min, x_max - width + 1)
+        y_start = np.random.randint(y_min, y_max - length + 1)
+        # 计算障碍物中心
+        center = (x_start + width // 2, y_start + length // 2)
+        # 检查与已放置障碍物的最小距离
+        too_close = False
+        for c in centers:
+            if (abs(center[0] - c[0]) < min_dist) and (abs(center[1] - c[1]) < min_dist):
+                too_close = True
+                break
+        if too_close:
+            continue  # 距离太近，重新采样
+        hf_raw[x_start : x_start + width, y_start : y_start + length] = height
+        centers.append(center)
+        placed += 1
+
+    return np.rint(hf_raw).astype(np.int16)
+
+# wall for lidar guide tasks
+@height_field_to_mesh
+def discrete_obstacles_wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscreteObstaclesWallTerrainCfg, custom_walls: list[dict] = None) -> np.ndarray:
+    """Generate a terrain with randomly generated obstacles as pillars with positive and negative heights.
+
+    The terrain is a flat platform at the center of the terrain with randomly generated obstacles as pillars
+    with positive and negative height. The obstacles are randomly generated cuboids with a random width and
+    height. They are placed randomly on the terrain with a minimum distance of :obj:`cfg.platform_width`
+    from the center of the terrain.
+
+    .. image:: ../../_static/terrains/height_field/discrete_obstacles_terrain.jpg
+       :width: 40%
+       :align: center
+
+    Args:
+        difficulty: The difficulty of the terrain. This is a value between 0 and 1.
+        cfg: The configuration for the terrain.
+
+    Returns:
+        The height field of the terrain as a 2D numpy array with discretized heights.
+        The shape of the array is (width, length), where width and length are the number of points
+        along the x and y axis, respectively.
+    """
+    # resolve terrain configuration
+    obs_height = cfg.obstacle_height_range[0] + difficulty * (
+        cfg.obstacle_height_range[1] - cfg.obstacle_height_range[0]
+    )
+
     # switch parameters to discrete units
     # -- terrain
     width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
@@ -257,27 +340,63 @@ def discrete_obstacles_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscret
 
     # create a terrain with a flat platform at the center
     hf_raw = np.zeros((width_pixels, length_pixels))
-    # generate the obstacles
-    for _ in range(cfg.num_obstacles):
-        # sample size
-        if cfg.obstacle_height_mode == "choice":
-            height = np.random.choice([-obs_height, -obs_height // 2, obs_height // 2, obs_height])
-        elif cfg.obstacle_height_mode == "fixed":
-            height = obs_height
-        else:
-            raise ValueError(f"Unknown obstacle height mode '{cfg.obstacle_height_mode}'. Must be 'choice' or 'fixed'.")
-        width = int(np.random.choice(obs_width_range))
-        length = int(np.random.choice(obs_length_range))
-        # sample position
-        x_start = int(np.random.choice(obs_x_range))
-        y_start = int(np.random.choice(obs_y_range))
-        # clip start position to the terrain
-        if x_start + width > width_pixels:
-            x_start = width_pixels - width
-        if y_start + length > length_pixels:
-            y_start = length_pixels - length
-        # add to terrain
-        hf_raw[x_start : x_start + width, y_start : y_start + length] = height
+    num_obstacles = cfg.num_obstacles
+    grid_rows = int(np.sqrt(num_obstacles))
+    grid_cols = int(np.ceil(num_obstacles / grid_rows))
+    cell_width = width_pixels // grid_cols
+    cell_length = length_pixels // grid_rows
+
+    obs_width_range = np.arange(obs_width_min, obs_width_max, 4)
+    obs_length_range = np.arange(obs_width_min, obs_width_max, 4)
+
+    placed = 0
+    for i in range(grid_rows):
+        for j in range(grid_cols):
+            if placed >= num_obstacles:
+                break
+            # sample size
+            if cfg.obstacle_height_mode == "choice":
+                height = np.random.choice([-obs_height, -obs_height // 2, obs_height // 2, obs_height])
+            elif cfg.obstacle_height_mode == "fixed":
+                height = obs_height
+            else:
+                raise ValueError(f"Unknown obstacle height mode '{cfg.obstacle_height_mode}'. Must be 'choice' or 'fixed'.")
+            width = int(np.random.choice(obs_width_range))
+            length = int(np.random.choice(obs_length_range))
+            # sample position within the cell
+            x_cell_start = i * cell_width
+            y_cell_start = j * cell_length
+            x_start = x_cell_start + np.random.randint(0, max(1, cell_width - width))
+            y_start = y_cell_start + np.random.randint(0, max(1, cell_length - length))
+            # clip start position to the terrain
+            if x_start + width > width_pixels:
+                x_start = width_pixels - width
+            if y_start + length > length_pixels:
+                y_start = length_pixels - length
+            # add to terrain
+            hf_raw[x_start : x_start + width, y_start : y_start + length] = height
+            placed += 1
+
+    # 方向始终垂直于x轴（沿y轴延伸）
+    if custom_walls is None and hasattr(cfg, "walls"):
+        custom_walls = cfg.walls
+    if custom_walls:  # 仅当有墙体定义时才处理
+        for wall in custom_walls:
+            # 单位转换
+            x = int(wall["x"] / cfg.horizontal_scale)
+            y = int(wall["y"] / cfg.horizontal_scale)
+            length = int(wall["length"] / cfg.horizontal_scale)
+            thickness = int(wall["thickness"] / cfg.horizontal_scale)
+            height = int(wall["height"] / cfg.vertical_scale)
+            # 边界检查，防止越界
+            x = max(0, min(x, hf_raw.shape[0] - 1))
+            y = max(0, min(y, hf_raw.shape[1] - 1))
+            x_end = max(0, min(x + thickness, hf_raw.shape[0]))
+            y_end = max(0, min(y + length, hf_raw.shape[1]))
+            if x_end > x and y_end > y:
+                # 叠加墙壁
+                hf_raw[x:x_end, y:y_end] = height
+
     # clip the terrain to the platform
     x1 = (width_pixels - platform_width) // 2
     x2 = (width_pixels + platform_width) // 2
@@ -286,7 +405,6 @@ def discrete_obstacles_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscret
     hf_raw[x1:x2, y1:y2] = 0
     # round off the heights to the nearest vertical step
     return np.rint(hf_raw).astype(np.int16)
-
 
 @height_field_to_mesh
 def wave_terrain(difficulty: float, cfg: hf_terrains_cfg.HfWaveTerrainCfg) -> np.ndarray:
@@ -480,8 +598,8 @@ def wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfWallTerrainCfg) -> np
         if wall_length < wall_width:
             wall_length, wall_width = wall_width, wall_length
         # Randomly choose position
-        x_start = np.random.randint(0, width_pixels - wall_width)
-        y_start = np.random.randint(0, length_pixels - wall_length)
+        x_start = np.random.randint(-4, width_pixels - wall_width - 5)
+        y_start = np.random.randint(-5, length_pixels - wall_length)
         # Place wall
         hf_raw[x_start:x_start + wall_width, y_start:y_start + wall_length] = wall_height
 
