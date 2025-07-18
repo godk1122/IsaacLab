@@ -278,10 +278,10 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
             restitution=0.0,
         ),
         terrain_generator=TerrainGeneratorCfg(
-            size=(32.0, 16.0),
+            size=(16.0, 10.0),
             border_width=1.0,
-            num_rows=16,
-            num_cols=16,
+            num_rows=32,
+            num_cols=32,
             # num_rows=8,
             # num_cols=8,
             horizontal_scale=0.1,
@@ -294,47 +294,45 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_obstacles=25,
-                    obstacle_height_mode="fixed",
-                    obstacle_width_range=(0.4, 0.8),
-                    obstacle_height_range=(4.0, 5.0),
-                    num_cylinders=6,
-                    cylinder_radius_range=(0.2, 0.6),
-                    cylinder_height=4.5,
-                    num_walls=3,
-                    wall_height_range=(4.0, 5.0),
-                    wall_width_range=(0.4, 0.6),
-                    wall_length_range=(4.0, 6.0),
-                    platform_width=0.0,
-                    proportion=0.2,
-                    walls=None,  # 如需自定义墙体可填写列表
-                ),
-                # middle complexity terrain, mixed obstacles with walls
-                "mixed_obstacles_2": HfDiscreteObstaclesWallTerrainCfg(
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
-                    num_obstacles=16,
+                    num_obstacles=14,
                     obstacle_height_mode="fixed",
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
                     num_cylinders=3,
                     cylinder_radius_range=(0.2, 0.6),
                     cylinder_height=4.5,
-                    num_walls=2,
+                    num_walls=1,
+                    wall_height_range=(4.0, 5.0),
+                    wall_width_range=(0.4, 0.6),
+                    wall_length_range=(4.0, 6.0),
+                    platform_width=0.0,
+                    proportion=0.2,
+                ),
+                # middle complexity terrain, mixed obstacles with walls
+                "mixed_obstacles_2": HfDiscreteObstaclesWallTerrainCfg(
+                    horizontal_scale=0.1,
+                    vertical_scale=0.01,
+                    border_width=1.0,
+                    num_obstacles=10,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    num_cylinders=2,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
+                    num_walls=1,
                     wall_height_range=(4.0, 5.0),
                     wall_width_range=(0.4, 0.6),
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.3,
-                    walls=None,
                 ),
                 # low complexity terrain, only cuboid obstacles
                 "mixed_obstacles_3": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_obstacles=8,
+                    num_obstacles=6,
                     obstacle_height_mode="fixed",
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
@@ -347,18 +345,17 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.2,
-                    walls=None,
                 ),
                 # only cuboid obstacles and cylinders
                 "mixed_obstacles_4": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_obstacles=20,
+                    num_obstacles=15,
                     obstacle_height_mode="fixed",
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
-                    num_cylinders=5,
+                    num_cylinders=3,
                     cylinder_radius_range=(0.2, 0.6),
                     cylinder_height=4.5,
                     num_walls=0,
@@ -367,7 +364,6 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.1,
-                    walls=None,
                 ),
                 # only wall
                 "mixed_obstacles_5": HfDiscreteObstaclesWallTerrainCfg(
@@ -387,7 +383,6 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.1,
-                    walls=None,
                 ),
                 # empty env
                 "mixed_obstacles_6": HfDiscreteObstaclesWallTerrainCfg(
@@ -407,7 +402,6 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.1,
-                    walls=None,
                 ),
             },
         ),
@@ -416,7 +410,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     )
         
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=256, env_spacing=2, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
     # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=64, env_spacing=2, replicate_physics=True)
     # robot
     robot: ArticulationCfg = UAVLIDAR_CFG.replace(
