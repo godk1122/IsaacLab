@@ -26,12 +26,14 @@ class RateController:
         # self._gain_i = torch.tensor([0.2, 0.2, 0.1], device=self.device)
         # self._gain_d = torch.tensor([0.003, 0.003, 0.0], device=self.device)
         
-        self.mixer = torch.tensor([
-            [-0.49538, -0.707107, 0.765300, 1.000000],
-            [0.49538, 0.707107, 1.000000, 1.000000],
-            [0.49538, -0.707107, -0.765300, 1.000000],
-            [-0.49538, 0.707107, -1.000000, 1.000000]
-        ]).to(self.device)
+        self.mixer = torch.tensor(
+            [
+                [-0.70711, -0.70711, 1.0, 1.000000],
+                [0.70711, 0.70711, 1.000000, 1.000000],
+                [0.70711, -0.70711, -1.0, 1.000000],
+                [-0.70711, 0.70711, -1.000000, 1.000000],
+            ]
+        ).to(self.device)
 
     def update_integral(self, rate_error, dt):
         i_factor = rate_error / deg2rad(400.0)

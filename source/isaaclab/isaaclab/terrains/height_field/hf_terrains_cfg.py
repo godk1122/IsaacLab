@@ -157,24 +157,47 @@ class HfDiscreteObstaclesTerrainCfg(HfTerrainBaseCfg):
 
 @configclass
 class HfDiscreteObstaclesWallTerrainCfg(HfTerrainBaseCfg):
-    """Configuration for a discrete obstacles height field terrain."""
+    """Configuration for a discrete obstacles + wall + cylinder height field terrain."""
 
     function = hf_terrains.discrete_obstacles_wall_terrain
 
+    # Cuboid obstacles
     obstacle_height_mode: str = "choice"
     """The mode to use for the obstacle height. Defaults to "choice".
-
-    The following modes are supported: "choice", "fixed".
+    Supported: "choice", "fixed".
     """
     obstacle_width_range: tuple[float, float] = MISSING
-    """The minimum and maximum width of the obstacles (in m)."""
+    """The minimum and maximum width of the cuboid obstacles (in m)."""
     obstacle_height_range: tuple[float, float] = MISSING
-    """The minimum and maximum height of the obstacles (in m)."""
+    """The minimum and maximum height of the cuboid obstacles (in m)."""
     num_obstacles: int = MISSING
-    """The number of obstacles to generate."""
+    """The number of cuboid obstacles to generate."""
+
+    # Cylinder obstacles
+    num_cylinders: int = 0
+    """The number of cylinder obstacles to generate."""
+    cylinder_radius_range: tuple[float, float] = (0.2, 0.6)
+    """The minimum and maximum radius of the cylinders (in m)."""
+    cylinder_height: float = 1.0
+    """The height of the cylinders (in m)."""
+
+    # Wall obstacles
+    wall_height_range: tuple[float, float] = (1.0, 2.0)
+    """The minimum and maximum height of the walls (in m)."""
+    wall_width_range: tuple[float, float] = (0.1, 0.3)
+    """The minimum and maximum width of the walls (in m)."""
+    wall_length_range: tuple[float, float] = (1.0, 5.0)
+    """The minimum and maximum length of the walls (in m)."""
+    num_walls: int = 0
+    """The number of walls to generate."""
+
+    # Custom walls
+    walls: list[dict] = None
+    """Custom wall definitions (list of dicts)."""
+
+    # Platform
     platform_width: float = 1.0
     """The width of the square platform at the center of the terrain. Defaults to 1.0."""
-    walls: list[dict] = None
     
 @configclass
 class HfWaveTerrainCfg(HfTerrainBaseCfg):

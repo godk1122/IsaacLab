@@ -20,7 +20,8 @@ from isaaclab.utils import configclass
 from isaaclab.utils.math import subtract_frame_transforms
 from isaaclab.sensors import RayCaster, RayCasterCfg, patterns
 
-from isaaclab.terrains import TerrainImporterCfg, TerrainImporter, TerrainGeneratorCfg, HfDiscreteObstaclesTerrainCfg, HfWallTerrainCfg
+from isaaclab.terrains import TerrainImporterCfg, TerrainImporter, TerrainGeneratorCfg, \
+    HfDiscreteObstaclesTerrainCfg, HfWallTerrainCfg, HfDiscreteObstaclesWallTerrainCfg
 
 class LidarGuideEnvWindow(BaseEnvWindow):
     """Window manager for the Quadcopter environment."""
@@ -55,7 +56,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     lidar_resolution = (72,5)
     lidar_range = 10.0
     # env
-    episode_length_s = 30
+    episode_length_s = 20
     decimation = 5
     action_space = 4
     observation_space = 12
@@ -155,7 +156,8 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #     # ),
     #     debug_vis=True,
     # )
-    # -------------------------- discrete_obstacles_wall_terrain --------------------------
+     
+    # # -------------------------------- wall  terrain --------------------------------
     # terrain = TerrainImporterCfg(
     #     prim_path="/World/ground",
     #     terrain_type="generator",
@@ -171,10 +173,10 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #         border_width=1.0,
     #         # num_rows=32,
     #         # num_cols=32,
-    #         num_rows=4,
-    #         num_cols=4,
+    #         num_rows=8,
+    #         num_cols=8,
     #         horizontal_scale=0.1,
-    #         vertical_scale=0.005,
+    #         vertical_scale=0.01,
     #         slope_threshold=0.75,
     #         use_cache=False,
     #         sub_terrains={
@@ -188,7 +190,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 proportion=0.4,
+    #                 proportion=0.3,
     #             ),
     #             "obstacles1": HfDiscreteObstaclesTerrainCfg(
     #                 # size=(4.0, 4.0),
@@ -200,7 +202,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 proportion=0.2,
+    #                 proportion=0.1,
     #             ),
     #             "obstacles2": HfDiscreteObstaclesTerrainCfg(
     #                 # size=(4.0, 4.0),
@@ -212,20 +214,59 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 proportion=0.4,
+    #                 proportion=0.1,
+    #             ),
+    #             "wall1": HfWallTerrainCfg(
+    #                 horizontal_scale=0.1,
+    #                 vertical_scale=0.01,
+    #                 border_width=1.0,
+    #                 num_walls=1,
+    #                 wall_height_range=(4.0, 5.0),
+    #                 wall_width_range=(0.4, 0.6),
+    #                 wall_length_range=(4.0, 6.0),
+    #                 platform_width=0.0,
+    #                 proportion=0.2,
+    #                 # proportion=1.0,
+    #             ),
+    #             "wall2": HfWallTerrainCfg(
+    #                 horizontal_scale=0.1,
+    #                 vertical_scale=0.01,
+    #                 border_width=1.0,
+    #                 num_walls=2,
+    #                 wall_height_range=(4.0, 5.0),
+    #                 wall_width_range=(0.4, 0.6),
+    #                 wall_length_range=(4.0, 6.0),
+    #                 platform_width=0.0,
+    #                 proportion=0.1,
+    #             ),
+    #             "wall3": HfWallTerrainCfg(
+    #                 horizontal_scale=0.1,
+    #                 vertical_scale=0.01,
+    #                 border_width=1.0,
+    #                 num_walls=3,
+    #                 wall_height_range=(4.0, 5.0),
+    #                 wall_width_range=(0.4, 0.6),
+    #                 wall_length_range=(4.0, 6.0),
+    #                 platform_width=0.0,
+    #                 proportion=0.05,
+    #             ),
+    #             "wall0": HfWallTerrainCfg(
+    #                 horizontal_scale=0.1,
+    #                 vertical_scale=0.01,
+    #                 border_width=1.0,
+    #                 num_walls=0,
+    #                 wall_height_range=(4.0, 5.0),
+    #                 wall_width_range=(0.4, 0.6),
+    #                 wall_length_range=(4.0, 6.0),
+    #                 platform_width=0.0,
+    #                 proportion=0.15,
     #             ),
     #         },
     #     ),
-    #     # max_init_terrain_level=5,
     #     collision_group=-1,
-    #     # visual_material=sim_utils.MdlFileCfg(
-    #     #     mdl_path=f"{NVIDIA_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
-    #     #     project_uvw=True,
-    #     # ),
     #     debug_vis=True,
-    #     )
-     
-    # # -------------------------------- wall  terrain --------------------------------
+    # )
+    # -------------------------- discrete_obstacles_wall_terrain --------------------------
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",
@@ -237,105 +278,145 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
             restitution=0.0,
         ),
         terrain_generator=TerrainGeneratorCfg(
-            size=(16.0, 10.0),
+            size=(32.0, 16.0),
             border_width=1.0,
-            num_rows=32,
-            num_cols=32,
+            num_rows=16,
+            num_cols=16,
             # num_rows=8,
             # num_cols=8,
             horizontal_scale=0.1,
-            vertical_scale=0.01,
+            vertical_scale=0.005,
             slope_threshold=0.75,
             use_cache=False,
             sub_terrains={
-                "obstacles0": HfDiscreteObstaclesTerrainCfg(
-                    # size=(4.0, 4.0),
+                # most complexity terrain, mixed obstacles with walls
+                "mixed_obstacles_1": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_obstacles= 14,
+                    num_obstacles=25,
                     obstacle_height_mode="fixed",
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
-                    platform_width= 0.0,
+                    num_cylinders=6,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
+                    num_walls=3,
+                    wall_height_range=(4.0, 5.0),
+                    wall_width_range=(0.4, 0.6),
+                    wall_length_range=(4.0, 6.0),
+                    platform_width=0.0,
+                    proportion=0.2,
+                    walls=None,  # 如需自定义墙体可填写列表
+                ),
+                # middle complexity terrain, mixed obstacles with walls
+                "mixed_obstacles_2": HfDiscreteObstaclesWallTerrainCfg(
+                    horizontal_scale=0.1,
+                    vertical_scale=0.01,
+                    border_width=1.0,
+                    num_obstacles=16,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    num_cylinders=3,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
+                    num_walls=2,
+                    wall_height_range=(4.0, 5.0),
+                    wall_width_range=(0.4, 0.6),
+                    wall_length_range=(4.0, 6.0),
+                    platform_width=0.0,
                     proportion=0.3,
+                    walls=None,
                 ),
-                "obstacles1": HfDiscreteObstaclesTerrainCfg(
-                    # size=(4.0, 4.0),
+                # low complexity terrain, only cuboid obstacles
+                "mixed_obstacles_3": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_obstacles= 10,
+                    num_obstacles=8,
                     obstacle_height_mode="fixed",
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
-                    platform_width= 0.0,
-                    proportion=0.1,
-                ),
-                "obstacles2": HfDiscreteObstaclesTerrainCfg(
-                    # size=(4.0, 4.0),
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
-                    num_obstacles= 8,
-                    obstacle_height_mode="fixed",
-                    obstacle_width_range=(0.4, 0.8),
-                    obstacle_height_range=(4.0, 5.0),
-                    platform_width= 0.0,
-                    proportion=0.1,
-                ),
-                "wall1": HfWallTerrainCfg(
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
+                    num_cylinders=1,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
                     num_walls=1,
                     wall_height_range=(4.0, 5.0),
                     wall_width_range=(0.4, 0.6),
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.2,
+                    walls=None,
                 ),
-                "wall2": HfWallTerrainCfg(
+                # only cuboid obstacles and cylinders
+                "mixed_obstacles_4": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
+                    num_obstacles=20,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    num_cylinders=5,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
+                    num_walls=0,
+                    wall_height_range=(4.0, 5.0),
+                    wall_width_range=(0.4, 0.6),
+                    wall_length_range=(4.0, 6.0),
+                    platform_width=0.0,
+                    proportion=0.1,
+                    walls=None,
+                ),
+                # only wall
+                "mixed_obstacles_5": HfDiscreteObstaclesWallTerrainCfg(
+                    horizontal_scale=0.1,
+                    vertical_scale=0.01,
+                    border_width=1.0,
+                    num_obstacles=0,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    num_cylinders=0,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
                     num_walls=2,
                     wall_height_range=(4.0, 5.0),
                     wall_width_range=(0.4, 0.6),
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
                     proportion=0.1,
+                    walls=None,
                 ),
-                "wall3": HfWallTerrainCfg(
+                # empty env
+                "mixed_obstacles_6": HfDiscreteObstaclesWallTerrainCfg(
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_walls=3,
-                    wall_height_range=(4.0, 5.0),
-                    wall_width_range=(0.4, 0.6),
-                    wall_length_range=(4.0, 6.0),
-                    platform_width=0.0,
-                    proportion=0.05,
-                ),
-                "wall0": HfWallTerrainCfg(
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
+                    num_obstacles=0,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    num_cylinders=0,
+                    cylinder_radius_range=(0.2, 0.6),
+                    cylinder_height=4.5,
                     num_walls=0,
                     wall_height_range=(4.0, 5.0),
                     wall_width_range=(0.4, 0.6),
                     wall_length_range=(4.0, 6.0),
                     platform_width=0.0,
-                    proportion=0.15,
+                    proportion=0.1,
+                    walls=None,
                 ),
             },
         ),
         collision_group=-1,
         debug_vis=True,
     )
-    
+        
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=256, env_spacing=2, replicate_physics=True)
     # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=64, env_spacing=2, replicate_physics=True)
     # robot
     robot: ArticulationCfg = UAVLIDAR_CFG.replace(
@@ -379,9 +460,10 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     # distance_to_goal_reward_scale = 15.0
     rotor_speed_discount = 50
     live_scale = 1
-    dir_reward_scale = 5.0
-    g_proj_reward_scale = 0.5
-    yaw_reward_scale = 0.5
+    dir_reward_scale = 3.2
+    g_proj_reward_scale = 0.0
+    reward_forward_facing_scale = 0.1
+    reward_distance_scale = 1.0
     
     class domain_randomization:
         class motor:
@@ -401,5 +483,5 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
         
         class lidar_noise:
             enable = True
-            # noise = 0.03
-            noise = 0.08
+            noise = 0.03
+            # noise = 0.05

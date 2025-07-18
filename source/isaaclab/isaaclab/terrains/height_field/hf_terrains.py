@@ -291,119 +291,105 @@ def discrete_obstacles_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscret
 
     return np.rint(hf_raw).astype(np.int16)
 
-# wall for lidar guide tasks
 @height_field_to_mesh
 def discrete_obstacles_wall_terrain(difficulty: float, cfg: hf_terrains_cfg.HfDiscreteObstaclesWallTerrainCfg, custom_walls: list[dict] = None) -> np.ndarray:
-    """Generate a terrain with randomly generated obstacles as pillars with positive and negative heights.
-
-    The terrain is a flat platform at the center of the terrain with randomly generated obstacles as pillars
-    with positive and negative height. The obstacles are randomly generated cuboids with a random width and
-    height. They are placed randomly on the terrain with a minimum distance of :obj:`cfg.platform_width`
-    from the center of the terrain.
-
-    .. image:: ../../_static/terrains/height_field/discrete_obstacles_terrain.jpg
-       :width: 40%
-       :align: center
-
-    Args:
-        difficulty: The difficulty of the terrain. This is a value between 0 and 1.
-        cfg: The configuration for the terrain.
-
-    Returns:
-        The height field of the terrain as a 2D numpy array with discretized heights.
-        The shape of the array is (width, length), where width and length are the number of points
-        along the x and y axis, respectively.
     """
-    # resolve terrain configuration
-    obs_height = cfg.obstacle_height_range[0] + difficulty * (
-        cfg.obstacle_height_range[1] - cfg.obstacle_height_range[0]
-    )
-
-    # switch parameters to discrete units
-    # -- terrain
-    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
-    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
-    # -- obstacles
+    生成包含离散圆柱、长方体和墙壁的地形
+    """
+    # 基础参数
+    obs_height = cfg.obstacle_height_range[0] + difficulty * (cfg.obstacle_height_range[1] - cfg.obstacle_height_range[0])
     obs_height = int(obs_height / cfg.vertical_scale)
     obs_width_min = int(cfg.obstacle_width_range[0] / cfg.horizontal_scale)
     obs_width_max = int(cfg.obstacle_width_range[1] / cfg.horizontal_scale)
-    # -- center of the terrain
     platform_width = int(cfg.platform_width / cfg.horizontal_scale)
-
-    # create discrete ranges for the obstacles
-    # -- shape
-    obs_width_range = np.arange(obs_width_min, obs_width_max, 4)
-    obs_length_range = np.arange(obs_width_min, obs_width_max, 4)
-    # -- position
-    obs_x_range = np.arange(0, width_pixels, 4)
-    obs_y_range = np.arange(0, length_pixels, 4)
-
-    # create a terrain with a flat platform at the center
+    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
     hf_raw = np.zeros((width_pixels, length_pixels))
-    num_obstacles = cfg.num_obstacles
-    grid_rows = int(np.sqrt(num_obstacles))
-    grid_cols = int(np.ceil(num_obstacles / grid_rows))
-    cell_width = width_pixels // grid_cols
-    cell_length = length_pixels // grid_rows
 
+    # 1. 随机生成长方体障碍物（带最小距离约束）
+    num_obstacles = cfg.num_obstacles
     obs_width_range = np.arange(obs_width_min, obs_width_max, 4)
     obs_length_range = np.arange(obs_width_min, obs_width_max, 4)
-
+    min_dist = int(1.5 / cfg.horizontal_scale)  # 设定障碍物中心最小间距（如2米，可调整）
     placed = 0
-    for i in range(grid_rows):
-        for j in range(grid_cols):
-            if placed >= num_obstacles:
+    cuboid_centers = []
+    while placed < num_obstacles:
+        if cfg.obstacle_height_mode == "choice":
+            height = np.random.choice([-obs_height, -obs_height // 2, obs_height // 2, obs_height])
+        elif cfg.obstacle_height_mode == "fixed":
+            height = obs_height
+        else:
+            raise ValueError(f"Unknown obstacle height mode '{cfg.obstacle_height_mode}'. Must be 'choice' or 'fixed'.")
+        width = int(np.random.choice(obs_width_range))
+        length = int(np.random.choice(obs_length_range))
+        if (width_pixels - width) <= 0 or (length_pixels - length) <= 0:
+            continue  # 尺寸太大，跳过
+        x_start = np.random.randint(0, width_pixels - width + 1)
+        y_start = np.random.randint(0, length_pixels - length + 1)
+        center = (x_start + width // 2, y_start + length // 2)
+        too_close = False
+        for c in cuboid_centers:
+            if (abs(center[0] - c[0]) < min_dist) and (abs(center[1] - c[1]) < min_dist):
+                too_close = True
                 break
-            # sample size
-            if cfg.obstacle_height_mode == "choice":
-                height = np.random.choice([-obs_height, -obs_height // 2, obs_height // 2, obs_height])
-            elif cfg.obstacle_height_mode == "fixed":
-                height = obs_height
-            else:
-                raise ValueError(f"Unknown obstacle height mode '{cfg.obstacle_height_mode}'. Must be 'choice' or 'fixed'.")
-            width = int(np.random.choice(obs_width_range))
-            length = int(np.random.choice(obs_length_range))
-            # sample position within the cell
-            x_cell_start = i * cell_width
-            y_cell_start = j * cell_length
-            x_start = x_cell_start + np.random.randint(0, max(1, cell_width - width))
-            y_start = y_cell_start + np.random.randint(0, max(1, cell_length - length))
-            # clip start position to the terrain
-            if x_start + width > width_pixels:
-                x_start = width_pixels - width
-            if y_start + length > length_pixels:
-                y_start = length_pixels - length
-            # add to terrain
-            hf_raw[x_start : x_start + width, y_start : y_start + length] = height
-            placed += 1
+        if too_close:
+            continue
+        hf_raw[x_start:x_start + width, y_start:y_start + length] = height
+        cuboid_centers.append(center)
+        placed += 1
 
-    # 方向始终垂直于x轴（沿y轴延伸）
-    if custom_walls is None and hasattr(cfg, "walls"):
-        custom_walls = cfg.walls
-    if custom_walls:  # 仅当有墙体定义时才处理
-        for wall in custom_walls:
-            # 单位转换
-            x = int(wall["x"] / cfg.horizontal_scale)
-            y = int(wall["y"] / cfg.horizontal_scale)
-            length = int(wall["length"] / cfg.horizontal_scale)
-            thickness = int(wall["thickness"] / cfg.horizontal_scale)
-            height = int(wall["height"] / cfg.vertical_scale)
-            # 边界检查，防止越界
-            x = max(0, min(x, hf_raw.shape[0] - 1))
-            y = max(0, min(y, hf_raw.shape[1] - 1))
-            x_end = max(0, min(x + thickness, hf_raw.shape[0]))
-            y_end = max(0, min(y + length, hf_raw.shape[1]))
-            if x_end > x and y_end > y:
-                # 叠加墙壁
-                hf_raw[x:x_end, y:y_end] = height
+    # 2. 随机生成圆柱障碍物（带最小距离约束）
+    num_cylinders = getattr(cfg, "num_cylinders", 0)
+    cyl_radius_min = int(getattr(cfg, "cylinder_radius_range", [2, 6])[0] / cfg.horizontal_scale)
+    cyl_radius_max = int(getattr(cfg, "cylinder_radius_range", [2, 6])[1] / cfg.horizontal_scale)
+    cyl_height = int(getattr(cfg, "cylinder_height", obs_height) / cfg.vertical_scale)
+    cylinder_centers = []
+    min_cyl_dist = int(1.5 / cfg.horizontal_scale)  # 可单独设置
+    placed_cyl = 0
+    while placed_cyl < num_cylinders:
+        radius = np.random.randint(cyl_radius_min, cyl_radius_max + 1)
+        if (width_pixels - 2 * radius) <= 0 or (length_pixels - 2 * radius) <= 0:
+            continue
+        x_center = np.random.randint(radius, width_pixels - radius)
+        y_center = np.random.randint(radius, length_pixels - radius)
+        center = (x_center, y_center)
+        too_close = False
+        for c in cylinder_centers:
+            if (abs(center[0] - c[0]) < min_cyl_dist) and (abs(center[1] - c[1]) < min_cyl_dist):
+                too_close = True
+                break
+        if too_close:
+            continue
+        yy, xx = np.meshgrid(np.arange(width_pixels), np.arange(length_pixels), indexing='ij')
+        mask = (yy - x_center) ** 2 + (xx - y_center) ** 2 <= radius ** 2
+        hf_raw[mask] = cyl_height
+        cylinder_centers.append(center)
+        placed_cyl += 1
 
-    # clip the terrain to the platform
+    # 3. 随机生成墙壁障碍物（参考 wall_terrain 逻辑）
+    num_walls = getattr(cfg, "num_walls", 0)
+    wall_height = cfg.wall_height_range[0] + difficulty * (cfg.wall_height_range[1] - cfg.wall_height_range[0])
+    wall_height = int(wall_height / cfg.vertical_scale)
+    wall_width_min = int(cfg.wall_width_range[0] / cfg.horizontal_scale)
+    wall_width_max = int(cfg.wall_width_range[1] / cfg.horizontal_scale)
+    wall_length_min = int(cfg.wall_length_range[0] / cfg.horizontal_scale)
+    wall_length_max = int(cfg.wall_length_range[1] / cfg.horizontal_scale)
+    for _ in range(num_walls):
+        wall_width = int(np.random.randint(wall_width_min, wall_width_max + 1))
+        wall_length = int(np.random.randint(wall_length_min, wall_length_max + 1))
+        if wall_length < wall_width:
+            wall_length, wall_width = wall_width, wall_length
+        x_start = np.random.randint(0, width_pixels - wall_width)
+        y_start = np.random.randint(0, length_pixels - wall_length)
+        hf_raw[x_start:x_start + wall_width, y_start:y_start + wall_length] = wall_height
+
+    # 5. 中心平台清空
     x1 = (width_pixels - platform_width) // 2
     x2 = (width_pixels + platform_width) // 2
     y1 = (length_pixels - platform_width) // 2
     y2 = (length_pixels + platform_width) // 2
     hf_raw[x1:x2, y1:y2] = 0
-    # round off the heights to the nearest vertical step
+    
     return np.rint(hf_raw).astype(np.int16)
 
 @height_field_to_mesh
