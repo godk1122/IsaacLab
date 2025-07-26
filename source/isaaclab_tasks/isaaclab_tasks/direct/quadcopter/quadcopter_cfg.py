@@ -122,3 +122,9 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
             root_lin_vel_b = 0.0
             root_ang_vel_b = 0.0
             projected_gravity_b = 0.0    
+            
+
+
+@configclass
+class TrackEnvCfg(QuadcopterEnvCfg):
+    distance_to_goal_reward_scale = 1.0

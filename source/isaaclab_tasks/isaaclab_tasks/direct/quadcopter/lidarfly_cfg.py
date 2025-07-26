@@ -55,7 +55,7 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     lidar_resolution = (72,5)
     lidar_range = 10.0
     # env
-    episode_length_s = 30
+    episode_length_s = 20
     decimation = 5
     action_space = 4
     observation_space = 12
@@ -165,10 +165,10 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
         terrain_generator=TerrainGeneratorCfg(
             size=(16.0, 10.0),
             border_width=1.0,
-            # num_rows=32,
-            # num_cols=32,
-            num_rows=8,
-            num_cols=8,
+            num_rows=32,
+            num_cols=32,
+            # num_rows=8,
+            # num_cols=8,
             horizontal_scale=0.1,
             vertical_scale=0.01,
             slope_threshold=0.75,
@@ -196,7 +196,7 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
                     platform_width= 0.0,
-                    proportion=0.1,
+                    proportion=0.2,
                 ),
                 "obstacles2": HfDiscreteObstaclesTerrainCfg(
                     # size=(4.0, 4.0),
@@ -208,41 +208,53 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
                     obstacle_width_range=(0.4, 0.8),
                     obstacle_height_range=(4.0, 5.0),
                     platform_width= 0.0,
-                    proportion=0.1,
-                ),
-                "wall1": HfWallTerrainCfg(
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
-                    num_walls=1,
-                    wall_height_range=(4.0, 5.0),
-                    wall_width_range=(0.4, 0.6),
-                    wall_length_range=(4.0, 6.0),
-                    platform_width=0.0,
                     proportion=0.2,
                 ),
-                "wall2": HfWallTerrainCfg(
+                "obstacles2": HfDiscreteObstaclesTerrainCfg(
+                    # size=(4.0, 4.0),
                     horizontal_scale=0.1,
                     vertical_scale=0.01,
                     border_width=1.0,
-                    num_walls=2,
-                    wall_height_range=(4.0, 5.0),
-                    wall_width_range=(0.4, 0.6),
-                    wall_length_range=(4.0, 6.0),
-                    platform_width=0.0,
-                    proportion=0.2,
+                    num_obstacles= 0,
+                    obstacle_height_mode="fixed",
+                    obstacle_width_range=(0.4, 0.8),
+                    obstacle_height_range=(4.0, 5.0),
+                    platform_width= 0.0,
+                    proportion=0.3,
                 ),
-                "wall3": HfWallTerrainCfg(
-                    horizontal_scale=0.1,
-                    vertical_scale=0.01,
-                    border_width=1.0,
-                    num_walls=3,
-                    wall_height_range=(4.0, 5.0),
-                    wall_width_range=(0.4, 0.6),
-                    wall_length_range=(4.0, 6.0),
-                    platform_width=0.0,
-                    proportion=0.1,
-                ),
+                # "wall1": HfWallTerrainCfg(
+                #     horizontal_scale=0.1,
+                #     vertical_scale=0.01,
+                #     border_width=1.0,
+                #     num_walls=1,
+                #     wall_height_range=(4.0, 5.0),
+                #     wall_width_range=(0.4, 0.6),
+                #     wall_length_range=(4.0, 6.0),
+                #     platform_width=0.0,
+                #     proportion=0.2,
+                # ),
+                # "wall2": HfWallTerrainCfg(
+                #     horizontal_scale=0.1,
+                #     vertical_scale=0.01,
+                #     border_width=1.0,
+                #     num_walls=2,
+                #     wall_height_range=(4.0, 5.0),
+                #     wall_width_range=(0.4, 0.6),
+                #     wall_length_range=(4.0, 6.0),
+                #     platform_width=0.0,
+                #     proportion=0.2,
+                # ),
+                # "wall3": HfWallTerrainCfg(
+                #     horizontal_scale=0.1,
+                #     vertical_scale=0.01,
+                #     border_width=1.0,
+                #     num_walls=3,
+                #     wall_height_range=(4.0, 5.0),
+                #     wall_width_range=(0.4, 0.6),
+                #     wall_length_range=(4.0, 6.0),
+                #     platform_width=0.0,
+                #     proportion=0.1,
+                # ),
             },
         ),
         collision_group=-1,
@@ -277,8 +289,8 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     #     debug_vis=False,
     # )
     # scene
-    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=64, env_spacing=2, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
+    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=64, env_spacing=2, replicate_physics=True)
     # robot
     robot: ArticulationCfg = UAVLIDAR_CFG.replace(
         prim_path="/World/envs/env_.*/Robot",
@@ -325,17 +337,13 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     moment_scale = 0.01
 
     # reward scales
-    # lin_vel_reward_scale = -0.05
-    lin_vel_reward_scale = -0.00
-    ang_vel_reward_scale = -0.075
-    z_reward_scale = 0.1 
-    esdf_scale = 0
+    ang_vel_reward_scale = -0.05
+    z_reward_scale = 0.5 
     action_diff_reward_scale = -0.3
-    # distance_to_goal_reward_scale = 15.0
     rotor_speed_discount = 50
     live_scale = 1
-    dir_reward_scale = 3.0
-    g_proj_reward_scale = 0.5
+    dir_reward_scale = 1.0
+    yaw_reward_scale = 0.2
     
     class domain_randomization:
         class motor:

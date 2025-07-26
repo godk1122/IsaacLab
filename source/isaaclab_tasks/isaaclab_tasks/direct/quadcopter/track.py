@@ -18,7 +18,7 @@ from isaaclab.sim import SimulationCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.math import subtract_frame_transforms
-
+from isaaclab.markers.config import RED_ARROW_X_MARKER_CFG
 ##
 # Pre-defined configs
 ##
@@ -28,12 +28,13 @@ from isaaclab.markers import CUBOID_MARKER_CFG  # isort: skip
 from isaaclab_tasks.direct.quadcopter.modules.controller import RateController
 from isaaclab_tasks.direct.quadcopter.modules.motor import MotorModel
 
-from .quadcopter_cfg import QuadcopterEnvCfg
+from .quadcopter_cfg import TrackEnvCfg
+from isaaclab.utils.math import quat_from_euler_xyz, quat_rotate
 
-class QuadcopterEnv(DirectRLEnv):
-    cfg: QuadcopterEnvCfg
+class TrackEnv(DirectRLEnv):
+    cfg: TrackEnvCfg
 
-    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: TrackEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
 
         # Total thrust and moment applied to the base of the quadcopter
@@ -50,13 +51,15 @@ class QuadcopterEnv(DirectRLEnv):
         self.last_action = torch.zeros(self.num_envs, 4, device=self.device)
         # self.step_dt=self.dt*self.cfg.decimation
         # Logging
+        # 更新 Logging - 添加 yaw_alignment
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
                 "lin_vel",
-                "ang_vel",
+                "ang_vel", 
                 "distance_to_goal",
                 "action_diff",
+                "yaw_alignment",  # 添加偏航奖励
             ]
         }
         # Get specific body indices
@@ -168,43 +171,33 @@ class QuadcopterEnv(DirectRLEnv):
         desired_pos_b, _ = subtract_frame_transforms(
             self._robot.data.root_state_w[:, :3], self._robot.data.root_state_w[:, 3:7], self._desired_pos_w
         )
-        # obs = torch.cat(
-        #     [
-        #         self.add_guass_noise(self._robot.data.root_lin_vel_b,
-        #                              self.cfg.noise_scales["root_lin_vel_b"]),
-        #         self.add_guass_noise(self._robot.data.root_ang_vel_b,
-        #                              self.cfg.noise_scales["root_ang_vel_b"]),
-        #         self.add_guass_noise(self._robot.data.projected_gravity_b,
-        #                              self.cfg.noise_scales["projected_gravity_b"]),
-        #         desired_pos_b,
-        #     ],
-        #     dim=-1,
-        # )
+
         g_proj=self._robot.data.projected_gravity_b
         g_proj=g_proj/torch.linalg.norm(g_proj, dim=1, keepdim=True)
         self._previous_actions = self._actions.clone()
+        
+        # 添加偏航角信息
+        # 计算当前机体x轴方向（世界坐标系）
+        x_axis_b = torch.tensor([1, 0, 0], device=self.device, dtype=torch.float32)
+        x_axis_b = x_axis_b.expand(self.num_envs, 3)
+        heading_vec_w = quat_rotate(self._robot.data.root_quat_w, x_axis_b)
+        
+        # 只取xy平面的朝向信息
+        heading_xy = heading_vec_w[:, :2]
+        heading_xy = heading_xy / (torch.linalg.norm(heading_xy, dim=1, keepdim=True) + 1e-6)
+            
         obs = torch.cat(
             [
-                self._robot.data.root_lin_vel_b,
-                self._robot.data.root_ang_vel_b,
-                g_proj,
-                desired_pos_b,
-                self.last_action,
+                self._robot.data.root_lin_vel_b,     # 线速度 [3]
+                self._robot.data.root_ang_vel_b,     # 角速度 [3]
+                g_proj,                              # 重力方向 [3]
+                desired_pos_b,                       # 目标位置 [3]
+                heading_xy,                          # 当前朝向 [2]
+                self.last_action,                    # 上一步动作 [4]
             ],
             dim=-1,
         )
-        if self.cfg.domain_randomization.noise.enable:
-            obs_noise = torch.cat(
-                [
-                    torch.randn_like(self._robot.data.root_lin_vel_b)*self.cfg.domain_randomization.noise.root_lin_vel_b,
-                    torch.randn_like(self._robot.data.root_ang_vel_b)*self.cfg.domain_randomization.noise.root_ang_vel_b,
-                    torch.zeros_like(self._robot.data.projected_gravity_b),
-                    torch.zeros_like(desired_pos_b),
-                    torch.zeros_like(self.last_action),
-                ],
-                dim=-1,
-            )
-            obs += obs_noise
+        # 总维度: 3+3+3+3+2+4 = 18
             
         observations = {"policy": obs}
         return observations
@@ -215,16 +208,44 @@ class QuadcopterEnv(DirectRLEnv):
         distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 4.0)
         action_diff = torch.sum(torch.square(self.last_action - self._previous_actions), dim=1)
+        
+        # 添加偏航奖励 - 朝向目标方向
+        from isaaclab.utils.math import quat_rotate
+        base_quat_w = self._robot.data.root_quat_w
+        x_axis_b = torch.tensor([1, 0, 0], device=self.device, dtype=base_quat_w.dtype).expand(self.num_envs, 3)
+        heading_vec_w = quat_rotate(base_quat_w, x_axis_b)  # [num_envs, 3]
+
+        # 目标方向（从当前位置指向目标位置）
+        target_direction = self._desired_pos_w - self._robot.data.root_pos_w  # [num_envs, 3]
+        target_direction = target_direction / (torch.norm(target_direction, dim=1, keepdim=True) + 1e-6)
+
+        # 只考虑xy平面的对齐
+        heading_vec_xy = heading_vec_w[:, :2]  # [num_envs, 2]
+        target_direction_xy = target_direction[:, :2]  # [num_envs, 2]
+
+        # 归一化
+        heading_vec_xy = heading_vec_xy / (torch.norm(heading_vec_xy, dim=1, keepdim=True) + 1e-6)
+        target_direction_xy = target_direction_xy / (torch.norm(target_direction_xy, dim=1, keepdim=True) + 1e-6)
+
+        # 计算机体x轴与目标方向的余弦相似度
+        reward_yaw = (heading_vec_xy * target_direction_xy).sum(dim=1)  # [num_envs]，范围[-1,1]
+        
         rewards = {
             "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
             "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
-            "action_diff" : action_diff* self.cfg.action_diff_reward_scale * self.step_dt,
+            "action_diff": action_diff * self.cfg.action_diff_reward_scale * self.step_dt,
+            "yaw_alignment": reward_yaw * 1.0 * self.step_dt,  # 添加偏航奖励
         }
+        
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
+        
         # Logging
         for key, value in rewards.items():
+            if key not in self._episode_sums:
+                self._episode_sums[key] = torch.zeros_like(value)
             self._episode_sums[key] += value
+        
         return reward
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -284,7 +305,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
 
     def _set_debug_vis_impl(self, debug_vis: bool):
-        # create markers if necessary for the first tome
+        # create markers if necessary for the first time
         if debug_vis:
             if not hasattr(self, "goal_pos_visualizer"):
                 marker_cfg = CUBOID_MARKER_CFG.copy()
@@ -294,10 +315,46 @@ class QuadcopterEnv(DirectRLEnv):
                 self.goal_pos_visualizer = VisualizationMarkers(marker_cfg)
             # set their visibility to true
             self.goal_pos_visualizer.set_visibility(True)
+            
+            # 添加机头朝向红色箭头可视化
+            if not hasattr(self, "heading_visualizer"):
+                from isaaclab.markers.config import RED_ARROW_X_MARKER_CFG
+                marker_cfg = RED_ARROW_X_MARKER_CFG.copy()
+                marker_cfg.markers["arrow"].scale = (1.0, 0.1, 0.1)
+                marker_cfg.prim_path = "/Visuals/Command/heading"
+                self.heading_visualizer = VisualizationMarkers(marker_cfg)
+            self.heading_visualizer.set_visibility(True)
+            
         else:
             if hasattr(self, "goal_pos_visualizer"):
                 self.goal_pos_visualizer.set_visibility(False)
+            if hasattr(self, "heading_visualizer"):
+                self.heading_visualizer.set_visibility(False)
 
     def _debug_vis_callback(self, event):
         # update the markers
         self.goal_pos_visualizer.visualize(self._desired_pos_w)
+        
+        # === 显示无人机朝向（机体x轴）蓝色箭头 ===
+        base_quat_w = self._robot.data.root_quat_w
+        
+        # 机体x轴在世界坐标系下的方向
+        x_axis_b = torch.tensor([1, 0, 0], device=self.device, dtype=base_quat_w.dtype).expand(self.num_envs, 3)
+        heading_vec_w = quat_rotate(base_quat_w, x_axis_b)
+        heading_vec_w[:, 2] = 0.0  # 只考虑xy平面的朝向
+        
+        # 计算箭头的尺寸和方向
+        heading_scale = torch.tensor([2.0, 0.15, 0.15], device=self.device).repeat(heading_vec_w.shape[0], 1)
+        heading_scale[:, 0] *= torch.linalg.norm(heading_vec_w[:, :2], dim=1) * 2.0
+        
+        # 计算朝向角度并生成四元数
+        heading_angle = torch.atan2(heading_vec_w[:, 1], heading_vec_w[:, 0])
+        zeros = torch.zeros_like(heading_angle)
+        heading_quat = quat_from_euler_xyz(zeros, zeros, heading_angle)
+        
+        # 箭头位置：无人机位置稍微向上偏移
+        base_pos_w = self._robot.data.root_pos_w.clone()
+        base_pos_w[:, 2] += 0.1
+        
+        # 可视化蓝色朝向箭头
+        self.heading_visualizer.visualize(base_pos_w, heading_quat, heading_scale)
