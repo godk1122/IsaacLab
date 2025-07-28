@@ -339,11 +339,11 @@ class LidarFlyEnvCfg(DirectRLEnvCfg):
     # reward scales
     ang_vel_reward_scale = -0.05
     z_reward_scale = 0.5 
-    action_diff_reward_scale = -0.3
+    action_diff_reward_scale = -0.1
     rotor_speed_discount = 50
     live_scale = 1
     dir_reward_scale = 1.0
-    yaw_reward_scale = 0.2
+    yaw_reward_scale = 1.0
     
     class domain_randomization:
         class motor:

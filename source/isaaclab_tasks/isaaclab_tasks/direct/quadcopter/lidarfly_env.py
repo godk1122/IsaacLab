@@ -95,7 +95,7 @@ class LidarFlyEnv(DirectRLEnv):
         self.obs_queue = deque(maxlen=3)
         initial_obs_shape = (self.num_envs, self._robot.data.root_lin_vel_b.shape[-1] + 
                              self._robot.data.root_ang_vel_b.shape[-1] + 1 +
-                             3 + 3 + self.heading_xy.shape[-1] + self.target_direction_xy.shape[-1] +
+                             3 + 3 + 1 +
                              self.last_action.shape[-1])
         initial_obs = torch.zeros(initial_obs_shape, device=self.device)
         for _ in range(3):
@@ -180,16 +180,28 @@ class LidarFlyEnv(DirectRLEnv):
         self._previous_actions = self._actions.clone()
         
         # ===== 计算朝向信息（只计算一次）=====
+        # 1. 计算当前机体朝向角
         base_quat_w = self._robot.data.root_quat_w
         x_axis_b = torch.tensor([1, 0, 0], device=self.device, dtype=base_quat_w.dtype).expand(self.num_envs, 3)
-        heading_vec_w = quat_rotate(base_quat_w, x_axis_b)    
-        # 存储为类属性，供奖励函数使用
-        self.heading_vec_w = heading_vec_w
-        self.heading_xy = heading_vec_w[:, :2] / (torch.norm(heading_vec_w[:, :2], dim=1, keepdim=True) + 1e-6)
-        # 目标方向信息
+        heading_vec_w = quat_rotate(base_quat_w, x_axis_b)
+        current_yaw = torch.atan2(heading_vec_w[:, 1], heading_vec_w[:, 0])  # 当前偏航角
+        
+        # 2. 计算目标偏航角
         target_direction_w = self._desired_pos_w - self._robot.data.root_pos_w
-        self.target_direction_xy = target_direction_w[:, :2] / (torch.norm(target_direction_w[:, :2], dim=1, keepdim=True) + 1e-6)
-    
+        target_yaw = torch.atan2(target_direction_w[:, 1], target_direction_w[:, 0])  # 目标偏航角
+        
+        # 3. 计算偏航角误差（处理角度环绕问题）
+        yaw_error = target_yaw - current_yaw
+        # 将角度误差归一化到 [-π, π] 范围
+        yaw_error = torch.atan2(torch.sin(yaw_error), torch.cos(yaw_error))
+        # 归一化到 [-1, 1] 范围，便于神经网络处理
+        yaw_error_normalized = yaw_error / torch.pi
+        # 存储供奖励函数使用
+        self.heading_vec_w = heading_vec_w
+        self.current_yaw = current_yaw
+        self.target_yaw = target_yaw
+        self.yaw_error = yaw_error
+
         # =====  lidar ===== 
         # 获取当前帧的激光雷达数据
         current_lidar_hits = self.scene["ray_scanner"].data.ray_hits_w
@@ -218,8 +230,7 @@ class LidarFlyEnv(DirectRLEnv):
                 root_state_w_z/2,
                 g_proj,
                 desired_pos_b,
-                self.heading_xy,          # 添加当前朝向
-                self.target_direction_xy, # 添加目标方向
+                yaw_error_normalized.unsqueeze(-1),      # 1维：偏航角误差
                 self.last_action,
             ],
             dim=-1,
@@ -250,8 +261,7 @@ class LidarFlyEnv(DirectRLEnv):
                 self._robot.data.root_pos_w[:, 2].unsqueeze(-1),
                 g_proj,
                 desired_pos_b,
-                self.heading_xy,          # 添加当前朝向
-                self.target_direction_xy, # 添加目标方向
+                yaw_error_normalized.unsqueeze(-1),      # 1维：偏航角误差
                 self.last_action,
             ],
             dim=-1,
@@ -273,8 +283,9 @@ class LidarFlyEnv(DirectRLEnv):
         reward_z = torch.exp(-5 * torch.abs(self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]))
          
         # ------------------------------- forward facing reward -------------------------------
-        # 奖励无人机机体x轴朝向目标方向
-        reward_yaw = (self.heading_xy * self.target_direction_xy).sum(dim=1)  # [num_envs]，范围[-1,1]
+        # ===== 更简洁的偏航奖励 =====
+        # 直接使用偏航角误差，越小越好
+        reward_yaw = torch.exp(-2 * torch.abs(self.yaw_error))  # 偏航误差越小，奖励越高
         # ---------------------------------------------------------------
         
         
