@@ -66,6 +66,7 @@ class LidarFlyEnv(DirectRLEnv):
                 "live",
                 "reward_dir",
                 "reward_yaw",
+                "reward_distance",
             ]
         }
         # Get specific body indices
@@ -95,7 +96,7 @@ class LidarFlyEnv(DirectRLEnv):
         self.obs_queue = deque(maxlen=3)
         initial_obs_shape = (self.num_envs, self._robot.data.root_lin_vel_b.shape[-1] + 
                              self._robot.data.root_ang_vel_b.shape[-1] + 1 +
-                             3 + 3 + 1 +
+                             1 + 3 + 2 + 1 +
                              self.last_action.shape[-1])
         initial_obs = torch.zeros(initial_obs_shape, device=self.device)
         for _ in range(3):
@@ -103,24 +104,31 @@ class LidarFlyEnv(DirectRLEnv):
         # add handle for debug visualization (this is set to a valid handle inside set_debug_vis)
         self.set_debug_vis(self.cfg.debug_vis)
         # self._init_debug_csv()
-    def _init_debug_csv(self):
-        import pandas as pd
-        motor_log_file=[
-            f"source/extensions/isaaclab_tasks/omni/isaac/lab_tasks/direct/quadcopter/motor_{i}_log.csv" for i in range(4)
-        ]    
-        motor_ref_vel=[]
-        DROP_FRONT_LINE=0
-        import pandas as pd
-        for log_fil in motor_log_file:
-            df=pd.read_csv(log_fil)
-            # drop front line
-            valid_data=df["motor_ref_vel_0"][DROP_FRONT_LINE:].values
-            motor_ref_vel_tensor=torch.tensor(valid_data, dtype=torch.float32, device=self.device)
-            motor_ref_vel.append(motor_ref_vel_tensor)
-
-        # cat all the tensor
-        self.motor_ref_vel=torch.stack(motor_ref_vel, dim=1).to(self.device)
-        self.ref_step_cnt=0
+        
+    def _extract_euler_angles(self, quat):
+        """从四元数提取欧拉角 (roll, pitch, yaw)"""
+        # quat: [w, x, y, z]
+        w, x, y, z = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]
+        
+        # Roll (x轴旋转)
+        sinr_cosp = 2 * (w * x + y * z)
+        cosr_cosp = 1 - 2 * (x * x + y * y)
+        roll = torch.atan2(sinr_cosp, cosr_cosp)
+        
+        # Pitch (y轴旋转)
+        sinp = 2 * (w * y - z * x)
+        pitch = torch.where(
+            torch.abs(sinp) >= 1,
+            torch.sign(sinp) * (torch.pi / 2),  # 处理gimbal lock
+            torch.asin(sinp)
+        )
+        
+        # Yaw (z轴旋转) - 你已经在用其他方法计算yaw，这里可以不用
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y * y + z * z)
+        yaw = torch.atan2(siny_cosp, cosy_cosp)
+        
+        return roll, pitch, yaw
 
     def _setup_scene(self):
         self._robot = Articulation(self.cfg.robot)
@@ -134,7 +142,6 @@ class LidarFlyEnv(DirectRLEnv):
         self.cfg.terrain.env_spacing = self.scene.cfg.env_spacing
         self._terrain = self.cfg.terrain.class_type(self.cfg.terrain)
 
-        
         # clone, filter, and replicate
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
@@ -169,41 +176,38 @@ class LidarFlyEnv(DirectRLEnv):
         return value + noise
         
     def _get_observations(self) -> dict:
-        desired_pos_b, _ = subtract_frame_transforms(
-            self._robot.data.root_state_w[:, :3], self._robot.data.root_state_w[:, 3:7], self._desired_pos_w
-        )
-        # 计算单位方向向量
-        desired_pos_b  = desired_pos_b / torch.norm(desired_pos_b, dim=-1, keepdim=True)
-        
-        g_proj=self._robot.data.projected_gravity_b
-        g_proj=g_proj/torch.linalg.norm(g_proj, dim=1, keepdim=True)
         self._previous_actions = self._actions.clone()
-        
-        # ===== 计算朝向信息（只计算一次）=====
-        # 1. 计算当前机体朝向角
+        # ===== 基础计算 =====
         base_quat_w = self._robot.data.root_quat_w
-        x_axis_b = torch.tensor([1, 0, 0], device=self.device, dtype=base_quat_w.dtype).expand(self.num_envs, 3)
-        heading_vec_w = quat_rotate(base_quat_w, x_axis_b)
-        current_yaw = torch.atan2(heading_vec_w[:, 1], heading_vec_w[:, 0])  # 当前偏航角
         
-        # 2. 计算目标偏航角
+        # ===== 提取roll和pitch角度 =====
+        roll, pitch, yaw = self._extract_euler_angles(base_quat_w)
+        # 归一化到 [-1, 1] 范围
+        roll_normalized = roll / torch.pi
+        pitch_normalized = pitch / torch.pi
+        
+        # ===== Z轴误差 =====
+        z_error = (self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]).unsqueeze(-1)
+
+        # ===== XY方向的单位向量 =====
         target_direction_w = self._desired_pos_w - self._robot.data.root_pos_w
-        target_yaw = torch.atan2(target_direction_w[:, 1], target_direction_w[:, 0])  # 目标偏航角
+        target_direction_xy = target_direction_w[:, :2]
+        target_distance_xy = torch.linalg.norm(target_direction_xy, dim=1, keepdim=True)
+        target_direction_xy_normalized = target_direction_xy / (target_distance_xy + 1e-6)
         
-        # 3. 计算偏航角误差（处理角度环绕问题）
-        yaw_error = target_yaw - current_yaw
-        # 将角度误差归一化到 [-π, π] 范围
+        # ===== 偏航角误差计算（直接使用已计算的yaw） =====
+        target_yaw = torch.atan2(target_direction_w[:, 1], target_direction_w[:, 0])
+        yaw_error = target_yaw - yaw  # 直接使用前面计算的yaw
+        # 处理角度环绕问题
         yaw_error = torch.atan2(torch.sin(yaw_error), torch.cos(yaw_error))
-        # 归一化到 [-1, 1] 范围，便于神经网络处理
         yaw_error_normalized = yaw_error / torch.pi
+        
         # 存储供奖励函数使用
-        self.heading_vec_w = heading_vec_w
-        self.current_yaw = current_yaw
+        self.current_yaw = yaw
         self.target_yaw = target_yaw
         self.yaw_error = yaw_error
-
-        # =====  lidar ===== 
-        # 获取当前帧的激光雷达数据
+        
+        # ===== 激光雷达处理（保持原有逻辑）=====
         current_lidar_hits = self.scene["ray_scanner"].data.ray_hits_w
         current_lidar_pos = self.ray_caster.data.pos_w.unsqueeze(1)
         
@@ -215,61 +219,38 @@ class LidarFlyEnv(DirectRLEnv):
         ).reshape(self.num_envs, -1)
 
         self.current_scan = self.current_scan / self.cfg.lidar_range
-        self.current_scan_noise  = self.current_scan
+        self.current_scan_noise = self.current_scan
         
-        # lidar domain randomization
         if self.cfg.domain_randomization.lidar_noise.enable:
             self.current_scan_noise = self.add_guass_noise(self.current_scan, self.cfg.domain_randomization.lidar_noise.noise)
         
-        # 确保 self._robot.data.root_state_w[:, 2] 的维度与其他张量相同
-        root_state_w_z = (self._robot.data.root_pos_w[:, 2] - self._desired_pos_w[:, 2]).unsqueeze(-1)
-        current_non_lidar_obs = torch.cat(
-            [
-                self._robot.data.root_lin_vel_b / 5,
-                self._robot.data.root_ang_vel_b,
-                root_state_w_z/2,
-                g_proj,
-                desired_pos_b,
-                yaw_error_normalized.unsqueeze(-1),      # 1维：偏航角误差
-                self.last_action,
-            ],
-            dim=-1,
-        )
+        # ===== 修改观测组合（使用roll、pitch、yaw_error）=====
+        current_non_lidar_obs = torch.cat([
+            self._robot.data.root_lin_vel_b / 5,               # 3维：线速度
+            self._robot.data.root_ang_vel_b,                   # 3维：角速度
+            z_error / 2,                                       # 1维：Z高度误差
+            roll_normalized.unsqueeze(-1),                     # 1维：roll角度
+            pitch_normalized.unsqueeze(-1),                    # 1维：pitch角度
+            yaw_error_normalized.unsqueeze(-1),                # 1维：偏航角误差（不用单独的yaw）
+            target_direction_xy_normalized,                    # 2维：XY方向单位向量
+            target_distance_xy.squeeze(-1).unsqueeze(-1) / 10, # 1维：XY距离
+            self.last_action,                                  # 4维：上一步动作
+        ], dim=-1)  # 总共 17维
         
-        # 更新队列
-        self.obs_queue.append(current_non_lidar_obs)
+        # 去掉历史队列，简化观测
+        obs = torch.cat([
+            self.current_scan_noise,
+            current_non_lidar_obs,
+        ], dim=-1)
+        obs = obs.clip(-5, 5)
         
-        # 累积最近3帧的非激光雷达部分观测数据
-        accumulated_non_lidar_obs = torch.cat(list(self.obs_queue), dim=-1)
+        critic_obs = torch.cat([
+            self.current_scan,
+            current_non_lidar_obs,
+        ], dim=-1)
+        critic_obs = critic_obs.clip(-5, 5)
         
-        # 将激光雷达部分与累积的非激光雷达部分观测数据拼接
-        obs = torch.cat(
-            [
-                self.current_scan_noise,
-                accumulated_non_lidar_obs,
-            ],
-            dim=-1,
-        )
-        obs= obs.clip(-2,2)
-        
-        critic_obs = torch.cat(
-            [
-                self.current_scan,
-                self._robot.data.root_lin_vel_b / 5,
-                self._robot.data.root_ang_vel_b,
-                root_state_w_z/2,
-                self._robot.data.root_pos_w[:, 2].unsqueeze(-1),
-                g_proj,
-                desired_pos_b,
-                yaw_error_normalized.unsqueeze(-1),      # 1维：偏航角误差
-                self.last_action,
-            ],
-            dim=-1,
-        )
-        critic_obs= critic_obs.clip(-2,2)
-            
-        observations = {"policy": obs,
-                        "critic": critic_obs}
+        observations = {"policy": obs, "critic": critic_obs}
         return observations
 
     def _get_rewards(self) -> torch.Tensor:
@@ -288,6 +269,10 @@ class LidarFlyEnv(DirectRLEnv):
         reward_yaw = torch.exp(-2 * torch.abs(self.yaw_error))  # 偏航误差越小，奖励越高
         # ---------------------------------------------------------------
         
+        distance_to_goal = torch.linalg.norm(
+            self._desired_pos_w - self._robot.data.root_pos_w, dim=1
+        )
+        reward_distance = torch.exp(-2 * distance_to_goal)  # 距离目标越近，奖励越高  
         
         # lidar 
         live = torch.ones_like(lin_vel)
@@ -298,6 +283,7 @@ class LidarFlyEnv(DirectRLEnv):
             "live" : self.cfg.live_scale * live * self.step_dt,
             "reward_dir": reward_dir * self.cfg.dir_reward_scale * self.step_dt,
             "reward_yaw": reward_yaw * self.cfg.yaw_reward_scale * self.step_dt,
+            "reward_distance": reward_distance * self.cfg.distance_reward_scale * self.step_dt,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         # Logging
@@ -459,26 +445,19 @@ class LidarFlyEnv(DirectRLEnv):
     def _debug_vis_callback(self, event):
         # update the markers
         self.goal_pos_visualizer.visualize(self._desired_pos_w)
-        
-        # === 显示无人机朝向（机体x轴）蓝色箭头 ===
-        base_quat_w = self._robot.data.root_quat_w
-        
-        # 机体x轴在世界坐标系下的方向
-        heading_vec_w = self.heading_vec_w.clone()
-        heading_vec_w[:, 2] = 0.0  # 只考虑xy平面的朝向
-        
-        # 计算箭头的尺寸和方向
-        heading_scale = torch.tensor([2.0, 0.15, 0.15], device=self.device).repeat(heading_vec_w.shape[0], 1)
-        heading_scale[:, 0] *= torch.linalg.norm(heading_vec_w[:, :2], dim=1) * 2.0
-        
-        # 计算朝向角度并生成四元数
-        heading_angle = torch.atan2(heading_vec_w[:, 1], heading_vec_w[:, 0])
+
+        # === 显示无人机当前yaw朝向（机体x轴）蓝色箭头 ===
+        # 使用 self.current_yaw 计算朝向
+        heading_angle = self.current_yaw  # [num_envs]
         zeros = torch.zeros_like(heading_angle)
         heading_quat = quat_from_euler_xyz(zeros, zeros, heading_angle)
-        
+
         # 箭头位置：无人机位置稍微向上偏移
         base_pos_w = self._robot.data.root_pos_w.clone()
         base_pos_w[:, 2] += 0.1
-        
+
+        # 箭头尺寸
+        heading_scale = torch.tensor([2.0, 0.15, 0.15], device=self.device).repeat(base_pos_w.shape[0], 1)
+
         # 可视化蓝色朝向箭头
         self.heading_visualizer.visualize(base_pos_w, heading_quat, heading_scale)
