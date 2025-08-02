@@ -99,8 +99,8 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #         border_width=1.0,
     #         # num_rows=32,
     #         # num_cols=32,
-    #         num_rows=1,
-    #         num_cols=1,
+    #         num_rows=8,
+    #         num_cols=8,
     #         horizontal_scale=0.1,
     #         vertical_scale=0.005,
     #         slope_threshold=0.75,
@@ -111,13 +111,12 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #                 horizontal_scale=0.1,
     #                 vertical_scale=0.01,
     #                 border_width=1.0,
-    #                 num_obstacles= 16,
+    #                 num_obstacles= 14,
     #                 obstacle_height_mode="fixed",
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 # proportion=0.4,
-    #                 proportion=0.0,
+    #                 proportion=0.3,
     #             ),
     #             "obstacles1": HfDiscreteObstaclesTerrainCfg(
     #                 # size=(4.0, 4.0),
@@ -129,22 +128,31 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 # proportion=0.3,
-    #                 proportion=0.0,
+    #                 proportion=0.2,
     #             ),
     #             "obstacles2": HfDiscreteObstaclesTerrainCfg(
     #                 # size=(4.0, 4.0),
     #                 horizontal_scale=0.1,
     #                 vertical_scale=0.01,
     #                 border_width=1.0,
-    #                 # num_obstacles= 8,
+    #                 num_obstacles= 8,
+    #                 obstacle_height_mode="fixed",
+    #                 obstacle_width_range=(0.4, 0.8),
+    #                 obstacle_height_range=(4.0, 5.0),
+    #                 platform_width= 0.0,
+    #                 proportion=0.2,
+    #             ),
+    #             "obstacles2": HfDiscreteObstaclesTerrainCfg(
+    #                 # size=(4.0, 4.0),
+    #                 horizontal_scale=0.1,
+    #                 vertical_scale=0.01,
+    #                 border_width=1.0,
     #                 num_obstacles= 0,
     #                 obstacle_height_mode="fixed",
     #                 obstacle_width_range=(0.4, 0.8),
     #                 obstacle_height_range=(4.0, 5.0),
     #                 platform_width= 0.0,
-    #                 # proportion=0.3,
-    #                 proportion=1.0,
+    #                 proportion=0.3,
     #             ),
     #         },
     #     ),
@@ -282,8 +290,8 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
             border_width=1.0,
             num_rows=32,
             num_cols=32,
-            # num_rows=8,
-            # num_cols=8,
+            # num_rows=4,
+            # num_cols=4,
             horizontal_scale=0.1,
             vertical_scale=0.005,
             slope_threshold=0.75,
@@ -411,7 +419,7 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
         
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=2, replicate_physics=True)
-    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=64, env_spacing=2, replicate_physics=True)
+    # scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=16, env_spacing=2, replicate_physics=True)
     # robot
     robot: ArticulationCfg = UAVLIDAR_CFG.replace(
         prim_path="/World/envs/env_.*/Robot",
@@ -443,21 +451,18 @@ class LidarGuideEnvCfg(DirectRLEnvCfg):
 
     thrust_to_weight = 1.9
     moment_scale = 0.01
+    rotor_speed_discount = 50
 
     # reward scales
-    # lin_vel_reward_scale = -0.05
-    lin_vel_reward_scale = -0.00
-    ang_vel_reward_scale = -0.075
-    z_reward_scale = 0.1 
-    esdf_scale = 0
-    action_diff_reward_scale = -0.3
-    # distance_to_goal_reward_scale = 15.0
-    rotor_speed_discount = 50
+    ang_vel_reward_scale = -0.05
+    z_reward_scale = 1.2
+    action_diff_reward_scale = -0.1
     live_scale = 1
-    dir_reward_scale = 3.2
-    g_proj_reward_scale = 0.0
-    reward_forward_facing_scale = 0.1
-    reward_distance_scale = 1.0
+    dir_reward_scale = 1.0
+    yaw_reward_scale = 1.0
+    reward_distance_scale = 0.1
+
+    direction_change_reward_scale = 1.0
     
     class domain_randomization:
         class motor:
