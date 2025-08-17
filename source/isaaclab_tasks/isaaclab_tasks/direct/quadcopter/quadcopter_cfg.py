@@ -134,9 +134,9 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
 
 @configclass
 class TrackEnvCfg(QuadcopterEnvCfg):
-    distance_to_goal_reward_scale = 10.0
+    distance_to_goal_reward_scale = 15.0
     speed_reward_scale = 5.0
-    action_diff_reward_scale = -1.0
+    action_diff_reward_scale = -5.0
     hover_reward_scale = 10.0
     
     # z_error_penalty_scale = 0.1
