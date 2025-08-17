@@ -1,0 +1,65 @@
+# ---- 摘要 ---- 
+四旋翼无人机实现自主避障的核心挑战在于对感知信息的处理及避障方法的实现。  
+本文结合了强化学习与机载3D激光雷达，端到端RL方法有助于降低控制延迟，减小传统方案下的算力受限问题，另一方面，激光雷达相较于深度相机有着更大的感知视角与感知距离。  
+除此之外，本文融合循环神经网络(LSTM)与矢量场直方图(VFH)的混合避障算法，有效提高避障策略的训练速度，在不同的飞行速度下均有着更高的避障成功率。  
+我们通过仿真及实物实验对本文设计的方法进行了验证，实验表明本文采用的方法在避障任务上优秀于对比方法，能够在具有大型障碍物的复杂场景中实现快速策略训练与稳定的避障迁移实验。  
+
+The core challenge in achieving autonomous obstacle avoidance for quadcopter drones lies in the efficient processing of sensor data and the effective implementation of avoidance strategies.  
+This paper presents a system integrating airborne 3D LiDAR with Reinforcement Learning (RL).  
+The RL framework mitigates computational constraints inherent in traditional methods and reduces control latency.  
+Furthermore, LiDAR offers distinct advantages over depth cameras, including an expanded field of view and superior perception range.  
+We further enhance the system by integrating a hybrid obstacle avoidance algorithm that combines a Recurrent Neural Network (LSTM) with the Vector Field Histogram (VFH) method.  
+This integration significantly accelerates the training of avoidance policies and achieves a higher success rate across varying flight speeds.  
+The proposed method was rigorously validated through both simulation and physical experiments.  
+Results demonstrate its superiority over benchmark controllers in obstacle avoidance tasks, enabling rapid policy training and stable, transferable avoidance performance in complex environments featuring large-scale obstacles.
+
+
+# ---- 三.方法 ----
+OmniAvoid通过激光雷达驱动的LSTM-VFH融合，增强RL，实现敏捷避障。所提出的Omnivoid导航框架如图2所示。
+对于感知信息处理部分，激光雷达观测输入采用极坐标扇形空间表示方法（第三A），第三B详细描述了整体的方法框架，介绍了采用的网络结构、观测输入以及控制输出。
+在奖励函数设计部分，采用了VFH方法设计特殊的避障奖励，在第三C中所介绍。
+
+OmniAvoid achieves agile obstacle avoidance via LiDAR-driven LSTM-VFH fusion enhanced by RL. 
+The proposed Omnivoid navigation framework is depictedin Fig. 2. For perception processing, we employ a polar coordinate sector representation to encode LiDAR observations (Section III-A). 
+Section III-B details the unified methodology framework, including the network architecture, observation inputs, and control outputs.
+Regarding reward design, a specialized obstacle avoidance reward function is formulated using VFH principles, as introduced in Section III-C.
+
+# ---- 三A. OmniAvoid激光雷达感知表示 ----
+III A  OmniAvoid Lidar Sensing Representation
+在基于雷达的无人机避障飞行中，对雷达点云的处理是极其重要的环节。
+在传统方法中，常常采用占用栅格地图（OGM）来表示雷达点云信息，并基于占用栅格地图进行路径规划。然而这种方法会导致较大的计算开销，尤其是在处理大规模点云数据时，同时对于小型障碍物的识别能力较差。
+另一种方法采用原始点云数据进行轨迹规划，但原始点云数量过于庞大，这种方法需要较大的计算资源。
+在强化学习的雷达自主飞行研究中，通常需要对点云数据进行降维处理，以便于在RL框架中进行有效的训练，然而目前基于原始点云的无人机端到端飞行研究仍然较为稀缺。
+在浙江大学的研究内容中，采用一个轻型的激光雷达模拟器，在仿真训练中引入了与实际场景相似的点云环境，并进行极坐标扇形空间表示。
+在OmniAvoid中，与浙江大学的研究不同，我们采用了更为高效的训练实现方式，基于IsaacLab的激光雷达传感器模块开发训练平台，
+通过射线表示，直接将点云数据转换为极坐标扇形空间表示，降低了训练实现的复杂度，同时可支持GPU加速，保证数据收集及策略训练的速度，如图所示。
+在仿真迁移及实物实验中，对于激光雷达点云数据的处理，我们采用了与浙江大学研究相同的极坐标扇形空间表示方法，保证了训练与测试的一致性。
+
+In radar-based obstacle avoidance for unmanned aerial vehicles (UAVs), processing radar point clouds constitutes a critical component. 
+Traditional methods frequently employ occupancy grid maps (OGM) to represent radar point cloud information for path planning. 
+However, this approach incurs substantial computational overhead, particularly when handling large-scale point cloud datasets, while simultaneously exhibiting limited recognition capability for small obstacles.
+
+Alternative methods perform trajectory planning directly on raw point cloud data, yet the excessive cardinality of raw point clouds demands considerable computational resources. 
+Within reinforcement learning (RL) research for radar-based autonomous UAV flight, dimensionality reduction of point cloud data is typically required to facilitate effective RL training. Nevertheless, end-to-end flight studies utilizing raw point clouds remain relatively scarce.
+
+Prior research at Zhejiang University introduced a lightweight LiDAR simulator incorporating polar coordinate sector representation for point clouds in simulated environments. 
+Distinct from this work, OmniAvoid implements a more efficient training paradigm by developing a platform based on IsaacLab's LiDAR sensor module.
+Through ray-casting representation, point cloud data is directly converted into polar coordinate sector space, reducing implementation complexity while enabling GPU acceleration for rapid data collection and policy training (visualized in Fig. X).
+
+For sim-to-real transfer and physical experiments, we maintain consistency with Zhejiang University's methodology by adopting identical polar coordinate sector representation for LiDAR point cloud processing, ensuring training-testing alignment.
+
+
+# ---- 三B. 网络设计和策略训练 ----
+1）观测空间
+OmniAvoid的观测空间包括激光雷达感知数据、机体速度、目标方向、当前姿态和历史动作。
+激光雷达感知数据采用极坐标扇形空间表示方法，机体速度、目标方向和当前姿态采用向量表示，历史动作采用离散化的动作空间表示方法。
+具体而言，激光雷达感知数据的形式为72*5的张量，代表360个扇区内最近的障碍物距离和角度信息，范围被归一化为[0, 1]。
+机体速度、目标方向和当前姿态被表示为向量形式，历史动作则被离散化为一组离散的动作空间表示方法。
+2）动作空间
+动作空间包括无人机的推力和三轴角速度，
+每个动作的范围被归一化为[-1, 1]。
+3）终止条件
+4）网络表示
+网络采用LSTM和MLP的组合结构，LSTM用于对雷达感知和状态信息进行时序处理，MLP用于对动作空间进行映射。
+5）策略训练
+OmniAvoid的策略训练采用了基于PPO的强化学习算法，使用了分布式训练框架，支持多环境并行训练。在训练过程中，采用了经验回放机制，将历史经验存储在缓冲区中，并在每个训练周期从缓冲区中采样经验进行训练。

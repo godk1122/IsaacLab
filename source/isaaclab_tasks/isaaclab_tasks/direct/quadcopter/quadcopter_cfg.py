@@ -88,7 +88,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     )
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=10, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4, replicate_physics=True)
 
     # robot
     thrust_to_weight = 1.9
@@ -117,14 +117,59 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 moment_constants = 0.2
                 tau_up = 0.1
                 tau_down = 0.1
-        class noise:
+        class observation:
             enable = False
-            root_lin_vel_b = 0.0
-            root_ang_vel_b = 0.0
-            projected_gravity_b = 0.0    
-            
+            class scale:     
+                root_lin_vel_b = 0.05
+                root_ang_vel_b = 0.05
+                projected_gravity_b = 0.05
+        
+        class action:
+            enable = True
+            class scale:
+                thrust_scalar = 0.1
+                bodyrate_scalar = 0.08
+                
 
 
 @configclass
 class TrackEnvCfg(QuadcopterEnvCfg):
-    distance_to_goal_reward_scale = 1.0
+    distance_to_goal_reward_scale = 10.0
+    speed_reward_scale = 5.0
+    action_diff_reward_scale = -1.0
+    hover_reward_scale = 10.0
+    
+    # z_error_penalty_scale = 0.1
+    # lin_vel_reward_scale = -0.5
+    # ang_vel_reward_scale = -0.05
+    
+    # robot
+    robot: ArticulationCfg = UAVLIDAR_CFG.replace(
+        prim_path="/World/envs/env_.*/Robot",
+        init_state=ArticulationCfg.InitialStateCfg(
+            rot=(0.0, 0.0, 0.0, 1.0),
+            pos=(0.0, 0.0, 1.5),  # 初始高度设置为1.5米
+        )
+    )
+    class domain_randomization:
+        class motor:
+            enable = True
+            class scale:
+                force_constants = 0.25
+                max_rotation_velocities = 0.25
+                moment_constants = 0.25
+                tau_up = 0.1
+                tau_down = 0.1
+                
+        class observation:
+            enable = False
+            class scale:     
+                root_lin_vel_b = 0.05
+                root_ang_vel_b = 0.05
+                projected_gravity_b = 0.05
+        
+        class action:
+            enable = False
+            class scale:
+                thrust_scalar = 0.1
+                bodyrate_scalar = 0.08
