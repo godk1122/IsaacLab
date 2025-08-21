@@ -52,10 +52,11 @@ class TrackEnv(DirectRLEnv):
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
-                "speed_reward",
+                # "speed_reward",
                 "distance_to_goal",
                 "action_diff",
                 "reward_hover",
+                "reward_yaw",
             ]
         }
         # Get specific body indices
@@ -73,6 +74,7 @@ class TrackEnv(DirectRLEnv):
 
         self._desired_yaw = torch.zeros(self.num_envs, device=self.device)  # Desired yaw angle for each environment
         self._yaw = torch.zeros(self.num_envs, device=self.device)  # Current yaw angle for each environment
+        self.yaw_error_norm = torch.zeros(self.num_envs, 1, device=self.device)  # Normalized yaw error
         
         # add handle for debug visualization (this is set to a valid handle inside set_debug_vis)
         self.set_debug_vis(self.cfg.debug_vis)
@@ -160,18 +162,6 @@ class TrackEnv(DirectRLEnv):
         # # 只取xy平面的朝向信息
         # heading_xy = heading_vec_w[:, :2]
         # heading_xy = heading_xy / (torch.linalg.norm(heading_xy, dim=1, keepdim=True) + 1e-6)
-            
-        
-        # 计算当前无人机偏航角
-        quat = self._robot.data.root_quat_w
-        yaw = torch.atan2(
-            2.0 * (quat[:, 0] * quat[:, 3] + quat[:, 1] * quat[:, 2]),
-            1.0 - 2.0 * (quat[:, 2] ** 2 + quat[:, 3] ** 2)
-        )
-        desired_yaw = self._desired_yaw
-        yaw_error = yaw - desired_yaw
-        yaw_error = (yaw_error + torch.pi) % (2 * torch.pi) - torch.pi  # wrap到[-pi, pi]
-        yaw_error_norm = (yaw_error / torch.pi).unsqueeze(1)  # 映射到[-1, 1]
         
         obs = torch.cat(
             [
@@ -179,7 +169,7 @@ class TrackEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b,     # 角速度 [3]
                 g_proj,                              # 重力方向 [3]
                 desired_pos_b,                       # 目标位置 [3]
-                # yaw_error_norm,                      # 偏航角误差 [1]
+                self.yaw_error_norm,                 # 偏航角误差 [1]
                 self.last_action,                    # 上一步动作 [4]
             ],
             dim=-1,
@@ -192,7 +182,7 @@ class TrackEnv(DirectRLEnv):
                     torch.randn_like(self._robot.data.root_ang_vel_b)*self.cfg.domain_randomization.observation.scale.root_ang_vel_b,
                     torch.zeros_like(self._robot.data.projected_gravity_b),
                     torch.zeros_like(desired_pos_b),
-                    # torch.zeros_like(yaw_error_norm),
+                    torch.zeros_like(self.yaw_error_norm),
                     torch.zeros_like(self.last_action),
                 ],
                 dim=-1,
@@ -215,17 +205,32 @@ class TrackEnv(DirectRLEnv):
         hover_mask = (distance_to_goal < 0.2)
         reward_hover = hover_mask * (1 - torch.tanh(velocity / 0.2))
         
-        # 目标速度奖励
-        # 目标速度奖励（速度接近0.5奖励最大，始终为正）
-        desired_speed = 0.5  # 期望速度
-        speed_error = torch.abs(velocity - desired_speed)
-        reward_speed = torch.exp(-speed_error * 4)  # 误差越小奖励越大，始终为正
+        # # 目标速度奖励
+        # # 目标速度奖励（速度接近0.5奖励最大，始终为正）
+        # desired_speed = 0.5  # 期望速度
+        # speed_error = torch.abs(velocity - desired_speed)
+        # reward_speed = torch.exp(-speed_error * 4)  # 误差越小奖励越大，始终为正
         
+        # 计算当前无人机偏航角
+        quat = self._robot.data.root_quat_w
+        yaw = torch.atan2(
+            2.0 * (quat[:, 0] * quat[:, 3] + quat[:, 1] * quat[:, 2]),
+            1.0 - 2.0 * (quat[:, 2] ** 2 + quat[:, 3] ** 2)
+        )
+        desired_yaw = self._desired_yaw
+        yaw_error = yaw - desired_yaw
+        yaw_error = (yaw_error + torch.pi) % (2 * torch.pi) - torch.pi  # wrap到[-pi, pi]
+        self.yaw_error_norm = (yaw_error / torch.pi).unsqueeze(1)  # 映射到[-1, 1]
+        
+        # 偏航奖励
+        reward_yaw = torch.exp(-torch.abs(self.yaw_error_norm)).squeeze(-1)
+
         rewards = {
-            "speed_reward": reward_speed * self.cfg.speed_reward_scale * self.step_dt,
+            # "speed_reward": reward_speed * self.cfg.speed_reward_scale * self.step_dt,
             "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
             "action_diff": action_diff * self.cfg.action_diff_reward_scale * self.step_dt,
             "reward_hover": reward_hover * self.cfg.hover_reward_scale * self.step_dt,
+            "reward_yaw": reward_yaw * self.cfg.reward_yaw_scale * self.step_dt,
         }
         
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
@@ -289,7 +294,6 @@ class TrackEnv(DirectRLEnv):
             self.episode_length_buf = torch.randint_like(self.episode_length_buf, high=int(self.max_episode_length))
 
         self._actions[env_ids] = 0.0
-        
         # ====== Sample new desired position and yaw ======
         # Sample new commands
         self._desired_pos_w[env_ids, :2] = torch.zeros_like(self._desired_pos_w[env_ids, :2]).uniform_(-1.0, 1.0)
@@ -302,19 +306,6 @@ class TrackEnv(DirectRLEnv):
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_vel = self._robot.data.default_joint_vel[env_ids]
         default_root_state = self._robot.data.default_root_state[env_ids]
-        
-        # same_pos_prob = 0.6  # 例如60%概率目标点和初始点一致
-        # if random.random() < same_pos_prob:
-        #     default_root_state[:, 2] = self._desired_pos_w[env_ids, 2]
-        #     # 保持x和y位置与目标位置一致
-        #     default_root_state[:, :2] = self._desired_pos_w[env_ids, :2]
-        #     # 保持偏航角与目标偏航角一致
-        #     yaw = self._desired_yaw[env_ids]
-        #     self._yaw[env_ids] = yaw
-        #     # Convert yaw to quaternion (assuming roll=0, pitch=0)
-        #     root_quat = quat_from_euler_xyz(torch.zeros_like(yaw), torch.zeros_like(yaw), yaw)
-        #     default_root_state[:, 3:7] = root_quat      
-        # else:
         
         # Randomly initialize x and y positions within the terrain bounds
         default_root_state[:, :2] = torch.zeros_like(default_root_state[:, :2]).uniform_(-1.0, 1.0)

@@ -134,10 +134,11 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
 
 @configclass
 class TrackEnvCfg(QuadcopterEnvCfg):
-    distance_to_goal_reward_scale = 15.0
+    distance_to_goal_reward_scale = 20.0
     speed_reward_scale = 5.0
     action_diff_reward_scale = -5.0
     hover_reward_scale = 10.0
+    reward_yaw_scale = 10.0
     
     # z_error_penalty_scale = 0.1
     # lin_vel_reward_scale = -0.5
@@ -163,13 +164,13 @@ class TrackEnvCfg(QuadcopterEnvCfg):
                 
         class observation:
             enable = False
-            class scale:     
-                root_lin_vel_b = 0.05
-                root_ang_vel_b = 0.05
-                projected_gravity_b = 0.05
+            class scale:
+                root_lin_vel_b = 0.02
+                # root_ang_vel_b = 0.02
+                # projected_gravity_b = 0.05
         
         class action:
             enable = False
             class scale:
-                thrust_scalar = 0.1
-                bodyrate_scalar = 0.08
+                thrust_scalar = 0.08
+                bodyrate_scalar = 0.05

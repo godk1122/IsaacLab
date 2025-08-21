@@ -3,7 +3,7 @@
     <link name='base_link'>
       <inertial>
         <pose>0.0 0 0 0 -0 0</pose>
-        <mass>0.280</mass>
+        <mass>0.269</mass>
         <inertia>
           <ixx>2.6287e-04</ixx>
           <ixy>0</ixy>
@@ -243,7 +243,7 @@
       <pose relative_to='joint_lidar'>0 0 0 0 -0 0</pose>
       <inertial>
         <pose>3.8230964319319E-07 -6.26231575659442E-06 -0.0249682835917488 0 0 0</pose>
-        <mass>0.220</mass>
+        <mass>0.244</mass>
         <inertia>
           <ixx>1.0428E-04</ixx>
           <ixy>0</ixy>
