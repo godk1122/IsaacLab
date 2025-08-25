@@ -52,11 +52,10 @@ class TrackEnv(DirectRLEnv):
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
-                # "speed_reward",
                 "distance_to_goal",
-                "action_diff",
+                "thrust_penalty",
+                "action_smooth",
                 "reward_hover",
-                "reward_yaw",
             ]
         }
         # Get specific body indices
@@ -169,7 +168,7 @@ class TrackEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b,     # 角速度 [3]
                 g_proj,                              # 重力方向 [3]
                 desired_pos_b,                       # 目标位置 [3]
-                self.yaw_error_norm,                 # 偏航角误差 [1]
+                # self.yaw_error_norm,                 # 偏航角误差 [1]
                 self.last_action,                    # 上一步动作 [4]
             ],
             dim=-1,
@@ -182,7 +181,7 @@ class TrackEnv(DirectRLEnv):
                     torch.randn_like(self._robot.data.root_ang_vel_b)*self.cfg.domain_randomization.observation.scale.root_ang_vel_b,
                     torch.zeros_like(self._robot.data.projected_gravity_b),
                     torch.zeros_like(desired_pos_b),
-                    torch.zeros_like(self.yaw_error_norm),
+                    # torch.zeros_like(self.yaw_error_norm),
                     torch.zeros_like(self.last_action),
                 ],
                 dim=-1,
@@ -202,8 +201,16 @@ class TrackEnv(DirectRLEnv):
         
         # 悬停奖励 在距离目标位置1米内的速度奖励
         velocity = torch.linalg.norm(self._robot.data.root_vel_w, dim=1)
-        hover_mask = (distance_to_goal < 0.2)
+        hover_mask = (distance_to_goal < 1)
         reward_hover = hover_mask * (1 - torch.tanh(velocity / 0.2))
+
+        action_diff = torch.sum(torch.square(self.last_action - self._previous_actions), dim=1)
+
+        # 推力惩罚：推力超过0.5时进行惩罚
+        thrust_penalty = torch.clamp(self.last_action[:, 3] - 0.5, min=0.0)  # 只有超过0.5的部分
+        
+        # 动作平滑奖励：鼓励平滑的动作变化
+        action_smooth_reward = torch.exp(-action_diff * 2)  # 动作变化越小，奖励越大
         
         # # 目标速度奖励
         # # 目标速度奖励（速度接近0.5奖励最大，始终为正）
@@ -211,26 +218,25 @@ class TrackEnv(DirectRLEnv):
         # speed_error = torch.abs(velocity - desired_speed)
         # reward_speed = torch.exp(-speed_error * 4)  # 误差越小奖励越大，始终为正
         
-        # 计算当前无人机偏航角
-        quat = self._robot.data.root_quat_w
-        yaw = torch.atan2(
-            2.0 * (quat[:, 0] * quat[:, 3] + quat[:, 1] * quat[:, 2]),
-            1.0 - 2.0 * (quat[:, 2] ** 2 + quat[:, 3] ** 2)
-        )
-        desired_yaw = self._desired_yaw
-        yaw_error = yaw - desired_yaw
-        yaw_error = (yaw_error + torch.pi) % (2 * torch.pi) - torch.pi  # wrap到[-pi, pi]
-        self.yaw_error_norm = (yaw_error / torch.pi).unsqueeze(1)  # 映射到[-1, 1]
+        # # 计算当前无人机偏航角
+        # quat = self._robot.data.root_quat_w
+        # yaw = torch.atan2(
+        #     2.0 * (quat[:, 0] * quat[:, 3] + quat[:, 1] * quat[:, 2]),
+        #     1.0 - 2.0 * (quat[:, 2] ** 2 + quat[:, 3] ** 2)
+        # )
+        # desired_yaw = self._desired_yaw
+        # yaw_error = yaw - desired_yaw
+        # yaw_error = (yaw_error + torch.pi) % (2 * torch.pi) - torch.pi  # wrap到[-pi, pi]
+        # self.yaw_error_norm = (yaw_error / torch.pi).unsqueeze(1)  # 映射到[-1, 1]
         
-        # 偏航奖励
-        reward_yaw = torch.exp(-torch.abs(self.yaw_error_norm)).squeeze(-1)
+        # # 偏航奖励
+        # reward_yaw = torch.exp(-torch.abs(self.yaw_error_norm)).squeeze(-1)
 
         rewards = {
-            # "speed_reward": reward_speed * self.cfg.speed_reward_scale * self.step_dt,
             "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
-            "action_diff": action_diff * self.cfg.action_diff_reward_scale * self.step_dt,
+            "thrust_penalty": -thrust_penalty * self.cfg.action_penalty_scale * self.step_dt,  # 负号表示惩罚
+            "action_smooth": action_smooth_reward * self.cfg.action_diff_reward_scale * self.step_dt,  # 正号表示奖励
             "reward_hover": reward_hover * self.cfg.hover_reward_scale * self.step_dt,
-            "reward_yaw": reward_yaw * self.cfg.reward_yaw_scale * self.step_dt,
         }
         
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
