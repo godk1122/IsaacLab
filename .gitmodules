@@ -1,0 +1,6 @@
+[submodule "source/source/rsl_rl"]
+	path = source/source/rsl_rl
+	url = https://github.com/leggedrobotics/rsl_rl
+[submodule "source/rsl_rl"]
+	path = source/rsl_rl
+	url = https://github.com/leggedrobotics/rsl_rl
